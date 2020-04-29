@@ -22,11 +22,10 @@ namespace TuneAPI
             {
                 while (true)
                 {
-                    int option;
                     PrintIntroHelp();
                     try
                     {
-                        option = int.Parse(Console.ReadLine());
+                        var option = int.Parse(Console.ReadLine());
                         api.ProcessOption(option);
                     }
                     catch (FormatException)
@@ -147,7 +146,7 @@ namespace TuneAPI
             Console.WriteLine("Total Installed Packages : {0}", installedPkgs.Count); // Prints the number of installed packages to the console
 
             // Prints details of all installed packages to the console
-            if (installedPkgs != null && m_tuneApp.InstalledPackages.Count > 0)
+            if (installedPkgs != null && installedPkgs.Count > 0)
             {
                 foreach (IMtcInstalledPackage p in installedPkgs)
                 {
@@ -191,15 +190,17 @@ namespace TuneAPI
         void ConnectToECU()
         {
             OpenWorkspace();
-
-            IMtcDevice current = m_tuneApp.Devices[0];
-            if (current != null && m_tuneApp.Devices.Count > 0)
+            if (m_tuneApp.Devices.Count > 0)
             {
-                uint serialNum = current.Serial;
-                m_tuneApp.Devices.Connect(serialNum); //Connects to first device found
-                //m_tuneApp.Devices.Connect(2851); // -> Connects to device with target serial number
+                IMtcDevice current = m_tuneApp.Devices[0];
+                if (current != null)
+                {
+                    uint serialNum = current.Serial;
+                    m_tuneApp.Devices.Connect(serialNum); //Connects to first device found
+                    //m_tuneApp.Devices.Connect(2851); // -> Connects to device with target serial number
 
-                m_ConnectedECUSerialNumber = serialNum;
+                    m_ConnectedECUSerialNumber = serialNum;
+                }
             }
             else
             {
@@ -227,24 +228,29 @@ namespace TuneAPI
         {
             OpenWorkspace();
 
-            IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
-            if (recentPkg != null && m_tuneApp.RecentPackages.Count > 0)
-                m_tuneApp.Packages.Load(recentPkg.Path, true);
-            Console.WriteLine("No recent packages available");
+            if (m_tuneApp.RecentPackages.Count > 0)
+            {
+                IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
+                if (recentPkg != null)
+                    m_tuneApp.Packages.Load(recentPkg.Path, true);
+            }
+            else
+                Console.WriteLine("No recent packages available");
         }
 
         void LoadPackageByName()
         {
-            string pkgFileName = "Generic 4 cylinder, MAP based Efficiency Migration Base v5"; //The name of the package we want to open
-            string ecuModel = "M150"; //The hardware device type
-            bool foundPackage = false;
+            const string pkgFileName = "Generic 4 cylinder, MAP based Efficiency Migration Base v5"; //The name of the package we want to open
+            const string ecuModel = "M150"; //The hardware device type          
 
             OpenWorkspace();
 
             var installedPkgs = m_tuneApp.InstalledPackages;
 
-            if (installedPkgs != null && m_tuneApp.InstalledPackages.Count > 0)
+            if (installedPkgs != null && installedPkgs.Count > 0)
             {
+                bool foundPackage = false;
+
                 foreach (IMtcInstalledPackage p in installedPkgs)
                 {
                     PrintInstalledPackage(p);
@@ -256,9 +262,9 @@ namespace TuneAPI
                     }
                 }
 
-                if (foundPackage == false)
+                if (!foundPackage)
                 {
-                    Console.WriteLine("Did not find file with name: {0} and ECU model {1}", pkgFileName, ecuModel);
+                    Console.WriteLine($"Did not find file with name: {pkgFileName} and ECU model {ecuModel}");
                 }
             }
             else
@@ -273,13 +279,18 @@ namespace TuneAPI
             var pkg = GetMainPackage();
             if (pkg != null)
             {
-                IMtcDevice current = m_tuneApp.Devices[0];
-                if ((current != null) && (m_tuneApp.Devices.Count > 0))
+                if (m_tuneApp.Devices.Count > 0)
                 {
-                    m_ConnectedECUSerialNumber = current.Serial;
-                    Console.WriteLine("Connected to ECU with serial " + m_ConnectedECUSerialNumber);
-                    pkg.Send(m_ConnectedECUSerialNumber);
-                    Console.WriteLine("Package sent successfully");
+                    IMtcDevice current = m_tuneApp.Devices[0];
+                    if (current != null)
+                    {
+                        m_ConnectedECUSerialNumber = current.Serial;
+                        Console.WriteLine($"Connected to ECU #{m_ConnectedECUSerialNumber}");
+                        if (pkg.Send(m_ConnectedECUSerialNumber))
+                            Console.WriteLine("Package sent successfully");
+                        else
+                            Console.WriteLine("Package send failed");
+                    }
                 }
                 else
                 {
@@ -309,44 +320,49 @@ namespace TuneAPI
         void GetAllChannels()
         {
             ConnectToECU();
-
-            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
-
-            //Print all ECU channels and their values to the console
-            if (allChannels != null && m_tuneApp.Packages.Count > 0)
+            if (m_tuneApp.Packages.Count > 0)
             {
-                foreach (IMtcDAQValue channel in allChannels)
+                var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+                //Print all ECU channels and their values to the console
+                if (allChannels != null)
                 {
-                    Console.WriteLine("{0}: {1} {2}", channel.DisplayName, channel.DisplayValue, channel.DisplayUnit);
+                    foreach (IMtcDAQValue channel in allChannels)
+                    {
+                        Console.WriteLine("{0}: {1} {2}", channel.DisplayName, channel.DisplayValue, channel.DisplayUnit);
+                    }
                 }
-            }
-            else
-            {
-                Console.WriteLine("Failed to fetch channels. Ensure package is loaded");
+                else
+                {
+                    Console.WriteLine("Failed to fetch channels. Ensure package is loaded");
+                }
             }
         }
 
         void GetChannelValue(string channelToSearchFor)
         {
             ConnectToECU();
-            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
-
-            string liveChannelValue = "";
-
-            if (allChannels != null && m_tuneApp.Packages.Count > 0)
+            if (m_tuneApp.Packages.Count > 0)
             {
-                foreach (IMtcDAQValue channel in allChannels)
+                var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+
+                if (allChannels != null)
                 {
-                    if (channel.DisplayName.Equals(channelToSearchFor))
+                    string liveChannelValue = "";
+
+                    foreach (IMtcDAQValue channel in allChannels)
                     {
-                        Console.WriteLine("{0} channel found. Current value is {1} {2}", channelToSearchFor, channel.DisplayValue, channel.DisplayUnit);
-                        liveChannelValue = channel.DisplayValue + " " + channel.DisplayUnit;
-                        break;
+                        if (channel.DisplayName.Equals(channelToSearchFor))
+                        {
+                            liveChannelValue = channel.DisplayValue + " " + channel.DisplayUnit;
+                            break;
+                        }
                     }
-                }
-                if (liveChannelValue.Equals(""))
-                {
-                    Console.WriteLine("Searched {0} channels. Did not find {1}", allChannels.Length, channelToSearchFor);
+                    if (string.IsNullOrEmpty(liveChannelValue))
+                    {
+                        Console.WriteLine("Searched {0} channels. Did not find {1}", allChannels.Length, channelToSearchFor);
+                    }
+                    else
+                        Console.WriteLine("{0} channel found. Current value is {1} {2}", channelToSearchFor, liveChannelValue);
                 }
             }
             else
@@ -454,18 +470,20 @@ namespace TuneAPI
 
                 var tables = pkg.Tables;
                 IMtcTable t = tables["Airbox Temperature Sensor Translation"];
+                if (t != null)
+                {
+                    double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
 
-                double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
+                    t.ReShape(true, x, false, null, false, null, true);
 
-                t.ReShape(true, x, false, null, false, null, true);
-
-                t.Site[0, 0, 0].Device.Value = -20;
-                t.Site[1, 0, 0].Device.Value = 0;
-                t.Site[2, 0, 0].Device.Value = 20;
-                t.Site[3, 0, 0].Device.Value = 40;
-                t.Site[4, 0, 0].Device.Value = 60;
-                t.Site[5, 0, 0].Device.Value = 80;
-                t.Site[6, 0, 0].Device.Value = 100;
+                    t.Site[0, 0, 0].Device.Value = -20;
+                    t.Site[1, 0, 0].Device.Value = 0;
+                    t.Site[2, 0, 0].Device.Value = 20;
+                    t.Site[3, 0, 0].Device.Value = 40;
+                    t.Site[4, 0, 0].Device.Value = 60;
+                    t.Site[5, 0, 0].Device.Value = 80;
+                    t.Site[6, 0, 0].Device.Value = 100;
+                }
             }
             else
             {
@@ -509,7 +527,7 @@ namespace TuneAPI
 
         IMtcPackage3 GetMainPackage()
         {
-            if ((m_tuneApp.Packages != null) && (m_tuneApp.Packages.Count > 0))
+            if (m_tuneApp.Packages != null && m_tuneApp.Packages.Count > 0)
                 return m_tuneApp.Packages[0] as IMtcPackage3;
             return null;
         }
