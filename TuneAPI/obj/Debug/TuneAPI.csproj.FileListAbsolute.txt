@@ -1,0 +1,9 @@
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\bin\Debug\TuneAPI.exe.config
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\bin\Debug\TuneAPI.exe
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\bin\Debug\TuneAPI.pdb
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\obj\Debug\TuneAPI.csprojAssemblyReference.cache
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\obj\Debug\Interop.M1Tune.dll
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\obj\Debug\TuneAPI.csproj.ResolveComReference.cache
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\obj\Debug\TuneAPI.csproj.CoreCompileInputs.cache
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\obj\Debug\TuneAPI.exe
+C:\Users\mila\Documents\Visual Studio 2017\Projects\TuneAPI\TuneAPI\obj\Debug\TuneAPI.pdb
