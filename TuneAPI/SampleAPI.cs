@@ -1,9 +1,6 @@
 ﻿using M1Tune;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 
 namespace TuneAPI
 {
@@ -11,6 +8,7 @@ namespace TuneAPI
     {
         private Tune m_tune;
         IMtcM1TuneApplication1 m_tuneApp;
+        bool m_ECUConnectionState;
         uint m_ConnectedECUSerialNumber;
         IMtcRecentFile m_recentWorkspace;
 
@@ -169,8 +167,9 @@ namespace TuneAPI
         void ConnectToECU()
         {
             OpenWorkspace();
+            CheckECUConnectionStatus();
 
-            if (m_ConnectedECUSerialNumber == 0)
+            if (m_ECUConnectionState == false)
             {
                 IMtcDevice currentDevice = GetDevice();
 
@@ -178,8 +177,9 @@ namespace TuneAPI
                 m_tuneApp.Devices.Connect(serialNum); //Connects to first device found
                                                       //m_tuneApp.Devices.Connect(2851); // -> Connects to device with target serial number
                 m_ConnectedECUSerialNumber = serialNum;
+                CheckECUConnectionStatus();
             }
-            //insert package load check
+            Debug.Assert(m_ECUConnectionState == true);
         }
 
         void DownloadLoggedData()
@@ -232,7 +232,7 @@ namespace TuneAPI
             LoadPackageByName();
             var pkg = GetMainPackage();
 
-            if (m_ConnectedECUSerialNumber == 0)
+            if (m_ECUConnectionState == false)
             {
                 IMtcDevice currentDevice = GetDevice();
                 m_ConnectedECUSerialNumber = currentDevice.Serial;
@@ -256,55 +256,51 @@ namespace TuneAPI
         void GetAllChannels()
         {
             ConnectToECU();
-            if (m_tuneApp.Packages.Count > 0)
-            {
-                var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
-                //Print all ECU channels and their values to the console
-                if (allChannels != null)
-                {
-                    foreach (IMtcDAQValue channel in allChannels)
-                    {
-                        Console.WriteLine($"{channel.DisplayName}: {channel.DisplayValue} {channel.DisplayUnit}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine("Failed to fetch channels. Ensure package is loaded");
-                }
-            }
-        }
-        
-        void GetChannelValue(string channelToSearchFor)
-        {
-            ConnectToECU();
-            if (m_tuneApp.Packages.Count > 0)
-            {
-                var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+            CheckForMainPackage();
 
-                if (allChannels != null)
+            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+            //Print all ECU channels and their values to the console
+            if (allChannels != null && allChannels.Length > 0)
+            {
+                foreach (IMtcDAQValue channel in allChannels)
                 {
-                    string liveChannelValue = "";
-
-                    foreach (IMtcDAQValue channel in allChannels)
-                    {
-                        if (channel.DisplayName.Equals(channelToSearchFor))
-                        {
-                            liveChannelValue = channel.DisplayValue + " " + channel.DisplayUnit;
-                            break;
-                        }
-                    }
-                    if (string.IsNullOrEmpty(liveChannelValue))
-                    {
-                        Console.WriteLine($"Searched {allChannels.Length} channels. Did not find {channelToSearchFor}");
-                    }
-                    else
-                        //THIS THROWS DEBUg ASSERT ERROR
-                        Console.WriteLine($"{channelToSearchFor} channel found. Current value is {liveChannelValue}");
+                    Console.WriteLine($"{channel.DisplayName}: {channel.DisplayValue} {channel.DisplayUnit}");
                 }
             }
             else
             {
-                Console.WriteLine("Failed to fetch channels. Ensure package is loaded");
+                Console.WriteLine("Failed to fetch channels. Check package");
+            }
+        }
+
+        void GetChannelValue(string channelToSearchFor)
+        {
+            ConnectToECU();
+            CheckForMainPackage();
+            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+
+            if (allChannels != null && allChannels.Length > 0)
+            {
+                string liveChannelValue = "";
+
+                foreach (IMtcDAQValue channel in allChannels)
+                {
+                    if (channel.DisplayName.Equals(channelToSearchFor))
+                    {
+                        liveChannelValue = channel.DisplayValue + " " + channel.DisplayUnit;
+                        break;
+                    }
+                }
+                if (string.IsNullOrEmpty(liveChannelValue))
+                {
+                    Console.WriteLine($"Searched {allChannels.Length} channels. Did not find {channelToSearchFor}");
+                }
+                else
+                    Console.WriteLine($"{channelToSearchFor} channel found. Current value is {liveChannelValue}");
+            }
+            else
+            {
+                Console.WriteLine("Failed to fetch channels. Check package");
             }
         }
 
@@ -318,63 +314,45 @@ namespace TuneAPI
             string p = "Inlet Air Temperature Sensor Default";
             GetChannelValue(c); //Check value of IAT
             var pkg = GetMainPackage();
-            if (pkg != null)
+            var parameterToChange = pkg.Parameters[p];
+            if (parameterToChange != null)
             {
-                var parameterToChange = pkg.Parameters[p];
-                if (parameterToChange != null)
-                {
-                    Console.WriteLine("Found :" + p);
-                    parameterToChange.Site.Device.Value = 75.0; //Change IAT Sensor Default to 75.0
+                Console.WriteLine("Found :" + p);
+                parameterToChange.Site.Device.Value = 75.0; //Change IAT Sensor Default to 75.0
 
-                    if (parameterToChange.Site.Device.Value != 75.0)
-                    {
-                        throw new Exception("Parameter set fail");
-                    }
+                if (parameterToChange.Site.Device.Value != 75.0)
+                {
+                    throw new Exception("Parameter set fail");
                 }
-                GetChannelValue(c); //Ensure channel now reports updated value
             }
-            else
-            {
-                Console.WriteLine("FAILED: No main package loaded");
-            }
+            GetChannelValue(c); //Ensure channel now reports updated value
         }
 
-        void TuneParameter(string channelName, string channelValue, bool connected)
+        void TuneParameter(string channelName, string channelValue)
         {
             //Generic version of tuneIATParameter() to use in other methods
             //Not only does this function tune parameters, it also sets dropdown values. 
             //For example: to set ADR CAN Bus from 'Not in use' to 2, simply write: tuneParameter("ADR CAN Bus", "2");
 
-            if (connected)
-            {
-                ConnectToECU(); //if connected is true, the package will be fetched from ECU and modified. If false, changes will be made to open offline package
-            }
-
             var pkg = GetMainPackage();
-            if (pkg != null)
+
+            var parameterToChange = pkg.Parameters[channelName];
+            if (parameterToChange != null)
             {
-                var parameterToChange = pkg.Parameters[channelName];
-                if (parameterToChange != null)
+                Console.WriteLine("Found :" + channelName);
+                try
                 {
-                    Console.WriteLine("Found :" + channelName);
-                    try
-                    {
-                        double v = double.Parse(channelValue);
-                        parameterToChange.Site.Device.Value = v;
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e.ToString()); //make sure the input string channelValue can be converted to a double. If yes, might fail due to COM failure
-                    }
+                    double v = double.Parse(channelValue);
+                    parameterToChange.Site.Device.Value = v;
                 }
-                else
+                catch (Exception e)
                 {
-                    Console.WriteLine("Could not find parameter " + channelName);
+                    Console.WriteLine(e.ToString()); //make sure the input string channelValue can be converted to a double. If yes, might fail due to COM failure
                 }
             }
             else
             {
-                Console.WriteLine("FAILED: No main package loaded");
+                Console.WriteLine("Could not find parameter " + channelName);
             }
         }
 
@@ -382,47 +360,33 @@ namespace TuneAPI
         {
             ConnectToECU();
             var pkg = GetMainPackage();
-            if (pkg != null)
-            {
-                var tables = pkg.Tables;
-                PrintTable(tables["Engine Efficiency"]);
-            }
-            else
-            {
-                Console.WriteLine("FAILED: No main package loaded");
-            }
+            var tables = pkg.Tables;
+            PrintTable(tables["Engine Efficiency"]);
         }
 
         void TuneTable()
         {
             ConnectToECU();
             var pkg = GetMainPackage();
-            if (pkg != null)
+            TuneParameter("Airbox Temperature Sensor Resource", "11");
+
+            SavePackage(pkg);
+
+            var tables = pkg.Tables;
+            IMtcTable t = tables["Airbox Temperature Sensor Translation"];
+            if (t != null)
             {
-                TuneParameter("Airbox Temperature Sensor Resource", "11", false);
+                double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
 
-                SavePackage(pkg);
+                t.ReShape(true, x, false, null, false, null, true);
 
-                var tables = pkg.Tables;
-                IMtcTable t = tables["Airbox Temperature Sensor Translation"];
-                if (t != null)
-                {
-                    double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
-
-                    t.ReShape(true, x, false, null, false, null, true);
-
-                    t.Site[0, 0, 0].Device.Value = -20;
-                    t.Site[1, 0, 0].Device.Value = 0;
-                    t.Site[2, 0, 0].Device.Value = 20;
-                    t.Site[3, 0, 0].Device.Value = 40;
-                    t.Site[4, 0, 0].Device.Value = 60;
-                    t.Site[5, 0, 0].Device.Value = 80;
-                    t.Site[6, 0, 0].Device.Value = 100;
-                }
-            }
-            else
-            {
-                Console.WriteLine("FAILED: No main package loaded");
+                t.Site[0, 0, 0].Device.Value = -20;
+                t.Site[1, 0, 0].Device.Value = 0;
+                t.Site[2, 0, 0].Device.Value = 20;
+                t.Site[3, 0, 0].Device.Value = 40;
+                t.Site[4, 0, 0].Device.Value = 60;
+                t.Site[5, 0, 0].Device.Value = 80;
+                t.Site[6, 0, 0].Device.Value = 100;
             }
         }
 
@@ -430,15 +394,8 @@ namespace TuneAPI
         {
             LoadPackageByName();
             var pkg = GetMainPackage();
-            if (pkg != null)
-            {
-                TuneParameter("Airbox Temperature Sensor Resource", "11", false);
-                SavePackage(pkg);
-            }
-            else
-            {
-                Console.WriteLine("FAILED: No main package loaded");
-            }
+            TuneParameter("Airbox Temperature Sensor Resource", "11");
+            SavePackage(pkg);
         }
 
         void TestConnected()
@@ -459,6 +416,19 @@ namespace TuneAPI
                 throw new Exception("No installed packages were found");
         }
 
+        void CheckECUConnectionStatus()
+        {
+            if (m_tuneApp.Packages.Count > 0)
+            {
+                bool p = m_tuneApp.Packages[0].Connected;
+                m_ECUConnectionState = p;
+            }
+            else
+            {
+                m_ECUConnectionState = false;
+            }
+        }
+
         IMtcDevice GetDevice()
         {
             if (m_tuneApp.Devices.Count == 0)
@@ -466,15 +436,15 @@ namespace TuneAPI
                 throw new Exception("No ECU connections are found");
             }
 
-            IMtcDevice current = m_tuneApp.Devices[0];
+            IMtcDevice d = m_tuneApp.Devices[0];
 
-            if (current == null || current.Serial == 0)
+            if (d == null || d.Serial == 0)
             {
                 throw new Exception("No ECU connections are found");
             }
             else
             {
-                return current;
+                return d;
             }
         }
 
