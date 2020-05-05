@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace TuneAPI
 {
-    class SampleAPI
+    class SampleAPI : OleMessageFilter
     {
         private Tune m_tune;
         IMtcM1TuneApplication1 m_tuneApp;
@@ -12,8 +12,10 @@ namespace TuneAPI
         uint m_ConnectedECUSerialNumber;
         IMtcRecentFile m_recentWorkspace;
 
+        [STAThread]
         public static void Main(string[] args)
         {
+            Register();
             SampleAPI api = new SampleAPI();
 
             if (api.Initialise())
@@ -37,6 +39,7 @@ namespace TuneAPI
                     }
                 }
             }
+            Revoke();
         }
 
         bool Initialise()
@@ -58,22 +61,20 @@ namespace TuneAPI
         {
             Console.WriteLine("Choose from the following options to demo functionality:");
             Console.WriteLine("1: Print details of all installed packages to the console");
-            Console.WriteLine("2: NOTHING #TODO");
-            Console.WriteLine("3: Connect to ECU and retrieve package");
-            Console.WriteLine("4: Download Logged Data");
-            Console.WriteLine("5: Load Recent Package");
-            Console.WriteLine("6: Load Package by Name");
-            Console.WriteLine("7: Send a package to the ECU");
-            Console.WriteLine("8: Retrieve package from ECU and save it as a new file");
-            Console.WriteLine("9: Get all live channel values and print to console");
-            Console.WriteLine("10: Get live value of channel");
-            Console.WriteLine("11: Tune Parameter");
-            Console.WriteLine("12: Print the engine efficiency table to the console");
-            Console.WriteLine("13: Assign a resource and tune a table");
-            Console.WriteLine("14: TEST FUNCTION - @joe this will be removed");
-            Console.WriteLine("15: Exit the program");
+            Console.WriteLine("2: Connect to ECU and retrieve package");
+            Console.WriteLine("3: Download Logged Data");
+            Console.WriteLine("4: Load Recent Package");
+            Console.WriteLine("5: Load Package by Name");
+            Console.WriteLine("6: Send a package to the ECU");
+            Console.WriteLine("7: Retrieve package from ECU and save it as a new file");
+            Console.WriteLine("8: Get all live channel values and print to console");
+            Console.WriteLine("9: Get live value of channel");
+            Console.WriteLine("10: Tune Parameter");
+            Console.WriteLine("11: Print the engine efficiency table to the console");
+            Console.WriteLine("12: Assign a resource and tune a table");
+            Console.WriteLine("13: TEST FUNCTION - @joe this will be removed");
+            Console.WriteLine("14: Exit the program");
             Console.WriteLine("");
-
         }
 
         void ProcessOption(int option)
@@ -86,45 +87,42 @@ namespace TuneAPI
                         PrintAllPackages();
                         break;
                     case 2:
-                        //
-                        break;
-                    case 3:
                         ConnectToECU();
                         break;
-                    case 4:
+                    case 3:
                         DownloadLoggedData();
                         break;
-                    case 5:
+                    case 4:
                         LoadRecentPackage();
                         break;
-                    case 6:
+                    case 5:
                         LoadPackageByName();
                         break;
-                    case 7:
+                    case 6:
                         SendPackage();
                         break;
-                    case 8:
+                    case 7:
                         RetrievePackageFromECUandSave();
                         break;
-                    case 9:
+                    case 8:
                         GetAllChannels();
                         break;
-                    case 10:
+                    case 9:
                         GetChannelValue("ECU Uptime");
                         break;
-                    case 11:
+                    case 10:
                         TuneIATParameter();
                         break;
-                    case 12:
+                    case 11:
                         PrintTable();
                         break;
-                    case 13:
+                    case 12:
                         TuneTable();
                         break;
-                    case 14:
-                        TestConnected();
+                    case 13:
+                        //
                         break;
-                    case 15:
+                    case 14:
                         Exit();
                         break;
 
@@ -145,8 +143,7 @@ namespace TuneAPI
             var installedPkgs = m_tuneApp.InstalledPackages;
             Console.WriteLine($"Total Installed Packages : {installedPkgs.Count}"); // Prints the number of installed packages to the console
 
-            // Prints details of all installed packages to the console
-            foreach (IMtcInstalledPackage p in installedPkgs)
+            foreach (IMtcInstalledPackage p in installedPkgs) // Prints details of all installed packages to the console
             {
                 PrintInstalledPackage(p);
             }
@@ -175,27 +172,24 @@ namespace TuneAPI
 
                 uint serialNum = currentDevice.Serial;
                 m_tuneApp.Devices.Connect(serialNum); //Connects to first device found
-                                                      //m_tuneApp.Devices.Connect(2851); // -> Connects to device with target serial number
+                //m_tuneApp.Devices.Connect(2851); // -> Connects to device with target serial number
                 m_ConnectedECUSerialNumber = serialNum;
-                CheckECUConnectionStatus();
             }
-            Debug.Assert(m_ECUConnectionState == true);
+            CheckECUConnectionStatus(true); //Ensure ECU connection is established
         }
 
         void DownloadLoggedData()
         {
             ConnectToECU();
-
             m_tuneApp.Devices.RetrieveLogData(m_ConnectedECUSerialNumber);
             //This takes us to screen where we select which sectors to extract from. 
             //it requires user interaction from here.
-
         }
 
         void LoadRecentPackage()
         {
             OpenWorkspace();
-            CheckRecentPackage();
+            CheckForRecentPackage();
             IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
 
             m_tuneApp.Packages.Load(recentPkg.Path, true);
@@ -249,7 +243,6 @@ namespace TuneAPI
         {
             ConnectToECU();
             var pkg = GetMainPackage();
-
             pkg.SaveAs("Testing package save from API", "Generated by MoTeC Tune API");
         }
 
@@ -370,7 +363,8 @@ namespace TuneAPI
             var pkg = GetMainPackage();
             TuneParameter("Airbox Temperature Sensor Resource", "11");
 
-            SavePackage(pkg);
+            SavePackage(pkg); //Setting a resource requires package save
+            CheckECUConnectionStatus(true); //Setting resource requires ECU reset following a save. Ensure we re-connect successfully.
 
             var tables = pkg.Tables;
             IMtcTable t = tables["Airbox Temperature Sensor Translation"];
@@ -388,20 +382,11 @@ namespace TuneAPI
                 t.Site[5, 0, 0].Device.Value = 80;
                 t.Site[6, 0, 0].Device.Value = 100;
             }
-        }
-
-        void TestSave()
-        {
-            LoadPackageByName();
-            var pkg = GetMainPackage();
-            TuneParameter("Airbox Temperature Sensor Resource", "11");
-            SavePackage(pkg);
-        }
-
-        void TestConnected()
-        {
-            bool p = m_tuneApp.Packages[0].Connected;
-            Console.WriteLine("Connected to ECU? " + p);
+            else
+            {
+                Console.WriteLine($"{t.DisplayName} was null. Check table");
+            }
+            //SavePackage(pkg); //Save again after making changes to the table. This is commented out to make the demo self-contained.
         }
 
         void Exit()
@@ -413,10 +398,10 @@ namespace TuneAPI
         void CheckForInstalledPackage()
         {
             if (m_tuneApp.InstalledPackages == null || m_tuneApp.InstalledPackages.Count == 0)
-                throw new Exception("No installed packages were found");
+                throw new Exception("ERROR: No installed packages were found");
         }
 
-        void CheckECUConnectionStatus()
+        void CheckECUConnectionStatus(bool breakIfNotConnected = false)
         {
             if (m_tuneApp.Packages.Count > 0)
             {
@@ -427,20 +412,23 @@ namespace TuneAPI
             {
                 m_ECUConnectionState = false;
             }
+
+            if (m_ECUConnectionState == false && breakIfNotConnected == true)
+                throw new Exception("ERROR: Not connected to ECU");
         }
 
         IMtcDevice GetDevice()
         {
             if (m_tuneApp.Devices.Count == 0)
             {
-                throw new Exception("No ECU connections are found");
+                throw new Exception("ERROR: No ECU connections are found");
             }
 
             IMtcDevice d = m_tuneApp.Devices[0];
 
             if (d == null || d.Serial == 0)
             {
-                throw new Exception("No ECU connections are found");
+                throw new Exception("ERROR: No ECU connections are found");
             }
             else
             {
@@ -454,18 +442,18 @@ namespace TuneAPI
                 m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
         }
 
-        void CheckRecentPackage()
+        void CheckForRecentPackage()
         {
             if (m_tuneApp.RecentPackages.Count == 0 || m_tuneApp.RecentPackages[0] == null)
             {
-                throw new Exception("No recent packages were found");
+                throw new Exception("ERROR: No recent packages were found");
             }
         }
 
         void CheckForMainPackage() 
         {
             if (m_tuneApp.Packages.Count == 0) {
-                throw new Exception("Main package not loaded");
+                throw new Exception("ERROR: Main package not loaded");
             }
         }
 
@@ -499,6 +487,8 @@ namespace TuneAPI
             bool saved = pkg.Save();
             if (saved)
                 Console.WriteLine("Package saved successfully");
+            else
+                throw new Exception("Failed to save package");
         }
 
         static void PrintTable(IMtcTable t)
