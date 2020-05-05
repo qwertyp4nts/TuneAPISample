@@ -154,13 +154,13 @@ namespace TuneAPI
 
         void OpenWorkspace()
         {
-            if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
+            CheckForWorkspace();
+            if (m_recentWorkspace == null)
             {
-                CheckForWorkspace();
-
                 var f = m_recentWorkspace.Path;
                 m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace
                 //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
+                CheckForWorkspace();
             }
         }
 
@@ -450,12 +450,8 @@ namespace TuneAPI
 
         void CheckForWorkspace()
         {
-            m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
-
-            if (m_recentWorkspace == null)
-            {
-                throw new Exception("No recent workspaces were found");
-            }
+            if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
+                m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
         }
 
         void CheckRecentPackage()
