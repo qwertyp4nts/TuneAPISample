@@ -6,23 +6,23 @@ namespace TuneAPI
 {
     class SampleAPI : OleMessageFilter
     {
-        private Tune m_tune;
-        IMtcM1TuneApplication1 m_tuneApp;
-        bool m_ECUConnectionState;
-        uint m_ConnectedECUSerialNumber;
-        IMtcRecentFile m_recentWorkspace;
+        private Tune            m_tune;
+        IMtcM1TuneApplication1  m_tuneApp;
+        bool                    m_ECUConnectionState;
+        uint                    m_ConnectedECUSerialNumber;
+        IMtcRecentFile          m_recentWorkspace;
 
         [STAThread]
         public static void Main(string[] args)
         {
             Register();
-            SampleAPI api = new SampleAPI();
 
+            SampleAPI api = new SampleAPI();
             if (api.Initialise())
             {
                 while (true)
                 {
-                    PrintIntroHelp();
+                    api.PrintIntroHelp();
                     try
                     {
                         var option = int.Parse(Console.ReadLine());
@@ -39,6 +39,7 @@ namespace TuneAPI
                     }
                 }
             }
+
             Revoke();
         }
 
@@ -46,7 +47,7 @@ namespace TuneAPI
         {
             try
             {
-                m_tune = new Tune(); //#TODO should fail if activation doesnt exist. if not, add another line
+                m_tune = new Tune();
                 m_tune.Visible = true; // Makes the Tune application visible to the user
                 m_tuneApp = m_tune as IMtcM1TuneApplication1;
             }
@@ -57,22 +58,22 @@ namespace TuneAPI
             return m_tune != null;
         }
 
-        static void PrintIntroHelp()
+        void PrintIntroHelp()
         {
             Console.WriteLine("Choose from the following options to demo functionality:");
             Console.WriteLine("1: Print details of all installed packages to the console");
             Console.WriteLine("2: Connect to ECU and retrieve package");
             Console.WriteLine("3: Download Logged Data");
-            Console.WriteLine("4: Load Recent Package");
+            Console.WriteLine("4: Load Most Recent Package");
             Console.WriteLine("5: Load Package by Name");
-            Console.WriteLine("6: Send a package to the ECU");
+            Console.WriteLine("6: Send a GP package to the ECU");
             Console.WriteLine("7: Retrieve package from ECU and save it as a new file");
-            Console.WriteLine("8: Get all live channel values and print to console");
-            Console.WriteLine("9: Get live value of channel");
-            Console.WriteLine("10: Tune Parameter");
-            Console.WriteLine("11: Print the engine efficiency table to the console");
-            Console.WriteLine("12: Assign a resource and tune a table");
-            Console.WriteLine("13: TEST FUNCTION - @joe this will be removed");
+            Console.WriteLine("8: Get all live channel values and print to the console");
+            Console.WriteLine("9: Get the live value of the 'ECU Uptime' channel");
+            Console.WriteLine("10: Change the value of the 'Inlet Air Temperature Sensor Default' Parameter");
+            Console.WriteLine("11: Print the Engine Efficiency table to the console");
+            Console.WriteLine("12: Assign a resource to 'Airbox Temperature Sensor Resource' and set its translation");
+            Console.WriteLine("13: Set the 'ADR CAN Bus' parameter to 'CAN Bus 1'");
             Console.WriteLine("14: Exit the program");
             Console.WriteLine("");
         }
@@ -120,7 +121,7 @@ namespace TuneAPI
                         TuneTable();
                         break;
                     case 13:
-                        //
+                        TuneParameterByEnum("ADR CAN Bus", "CAN Bus 1");
                         break;
                     case 14:
                         Exit();
@@ -149,21 +150,28 @@ namespace TuneAPI
             }
         }
 
-        void OpenWorkspace()
+        void CheckForWorkspace()
         {
-            CheckForWorkspace();
+            if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
+            {
+                m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
+                if (m_recentWorkspace != null)
+                {
+                    var f = m_recentWorkspace.Path;
+                    m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace}
+                    //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
+                }
+            }
+
             if (m_recentWorkspace == null)
             {
-                var f = m_recentWorkspace.Path;
-                m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace
-                //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
-                CheckForWorkspace();
+                throw new Exception("ERROR: No recent workspace was found");
             }
         }
 
         void ConnectToECU()
         {
-            OpenWorkspace();
+            CheckForWorkspace();
             CheckECUConnectionStatus();
 
             if (m_ECUConnectionState == false)
@@ -175,6 +183,7 @@ namespace TuneAPI
                 //m_tuneApp.Devices.Connect(2851); // -> Connects to device with target serial number
                 m_ConnectedECUSerialNumber = serialNum;
             }
+
             CheckECUConnectionStatus(true); //Ensure ECU connection is established
         }
 
@@ -182,16 +191,16 @@ namespace TuneAPI
         {
             ConnectToECU();
             m_tuneApp.Devices.RetrieveLogData(m_ConnectedECUSerialNumber);
-            //This takes us to screen where we select which sectors to extract from. 
+            //This takes us to screen where we select which sectors to extract from.
             //it requires user interaction from here.
         }
 
         void LoadRecentPackage()
         {
-            OpenWorkspace();
+            CheckForWorkspace();
             CheckForRecentPackage();
+ 
             IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
-
             m_tuneApp.Packages.Load(recentPkg.Path, true);
         }
 
@@ -201,7 +210,7 @@ namespace TuneAPI
             const string ecuModel = "M150"; //The hardware device type          
             bool foundPackage = false;
 
-            OpenWorkspace();
+            CheckForWorkspace();
             CheckForInstalledPackage();
 
             var installedPkgs = m_tuneApp.InstalledPackages;
@@ -252,9 +261,9 @@ namespace TuneAPI
             CheckForMainPackage();
 
             var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
-            //Print all ECU channels and their values to the console
-            if (allChannels != null && allChannels.Length > 0)
+            if (allChannels != null)
             {
+                //Print all ECU channels and their values to the console
                 foreach (IMtcDAQValue channel in allChannels)
                 {
                     Console.WriteLine($"{channel.DisplayName}: {channel.DisplayValue} {channel.DisplayUnit}");
@@ -270,8 +279,8 @@ namespace TuneAPI
         {
             ConnectToECU();
             CheckForMainPackage();
-            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
 
+            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
             if (allChannels != null && allChannels.Length > 0)
             {
                 string liveChannelValue = "";
@@ -303,19 +312,22 @@ namespace TuneAPI
             //Default is 35.0C
             //Change default value and check IAT channel
 
-            string c = "Inlet Air Temperature";
-            string p = "Inlet Air Temperature Sensor Default";
+            const string c = "Inlet Air Temperature";
+            const string p = "Inlet Air Temperature Sensor Default";
+ 
             GetChannelValue(c); //Check value of IAT
-            var pkg = GetMainPackage();
-            var parameterToChange = pkg.Parameters[p];
-            if (parameterToChange != null)
             {
-                Console.WriteLine("Found :" + p);
-                parameterToChange.Site.Device.Value = 75.0; //Change IAT Sensor Default to 75.0
-
-                if (parameterToChange.Site.Device.Value != 75.0)
+                var pkg = GetMainPackage();
+                var parameterToChange = pkg.Parameters[p];
+                if (parameterToChange != null)
                 {
-                    throw new Exception("Parameter set fail");
+                    Console.WriteLine("Found :" + p);
+                    parameterToChange.Site.Device.Value = 75.0; //Change IAT Sensor Default to 75.0
+
+                    if (parameterToChange.Site.Device.Value != 75.0)
+                    {
+                        throw new Exception("Parameter set fail");
+                    }
                 }
             }
             GetChannelValue(c); //Ensure channel now reports updated value
@@ -325,7 +337,8 @@ namespace TuneAPI
         {
             //Generic version of tuneIATParameter() to use in other methods
             //Not only does this function tune parameters, it also sets dropdown values. 
-            //For example: to set ADR CAN Bus from 'Not in use' to 2, simply write: tuneParameter("ADR CAN Bus", "2");
+            //For example: to set ADR CAN Bus from 'Not in Use' to 'CAN Bus 2' (which is the enumeration of index 2), write: tuneParameter("ADR CAN Bus", "2");
+            //This method does this by index. See TuneParameterByEnum() to tune via enumeration name
 
             var pkg = GetMainPackage();
 
@@ -349,9 +362,39 @@ namespace TuneAPI
             }
         }
 
+        void TuneParameterByEnum(string channelName, string channelValue)
+        {
+            ConnectToECU();
+
+            var pkg = GetMainPackage();
+
+            var parameterToChange = pkg.Parameters[channelName];
+            if (parameterToChange != null)
+            {
+                Console.WriteLine("Found: " + channelName);
+                try
+                {
+                    var v = parameterToChange.Enumeration.EnumeratorByDisplayName[channelValue].Value;
+                    parameterToChange.Site.Device.Value = v;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"ERROR: Ensure '{channelValue}' is a valid enumeration of: {channelName}");
+                }
+                // The following is commented out to make the demo self-contained. Re-enable to save the package after the change has been made
+                // SavePackage(pkg); //Setting a resource requires package save
+                // CheckECUConnectionStatus(true); //Setting resource requires ECU reset following a save. Ensure we re-connect successfully.
+            }
+            else
+            {
+                Console.WriteLine("Could not find parameter " + channelName);
+            }
+        }
+
         void PrintTable()
         {
             ConnectToECU();
+            
             var pkg = GetMainPackage();
             var tables = pkg.Tables;
             PrintTable(tables["Engine Efficiency"]);
@@ -360,6 +403,7 @@ namespace TuneAPI
         void TuneTable()
         {
             ConnectToECU();
+            
             var pkg = GetMainPackage();
             TuneParameter("Airbox Temperature Sensor Resource", "11");
 
@@ -436,23 +480,18 @@ namespace TuneAPI
             }
         }
 
-        void CheckForWorkspace()
-        {
-            if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
-                m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
-        }
-
         void CheckForRecentPackage()
         {
             if (m_tuneApp.RecentPackages.Count == 0 || m_tuneApp.RecentPackages[0] == null)
             {
-                throw new Exception("ERROR: No recent packages were found");
+                throw new Exception("ERROR: No recent package was found");
             }
         }
 
-        void CheckForMainPackage() 
+        void CheckForMainPackage()
         {
-            if (m_tuneApp.Packages.Count == 0) {
+            if (m_tuneApp.Packages.Count == 0)
+            {
                 throw new Exception("ERROR: Main package not loaded");
             }
         }
@@ -522,7 +561,6 @@ namespace TuneAPI
                 Console.WriteLine($"\tData Type : {axis.DataType}");
 
                 Console.Write("\tValues:");
-
                 for (uint i = 0; i < axis.UsedSites; i++)
                 {
                     Console.Write(axis.Site[i].Display.DisplayValue);
