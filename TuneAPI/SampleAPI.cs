@@ -141,7 +141,7 @@ namespace TuneAPI
         {
             CheckForInstalledPackage();
 
-            var installedPkgs = m_tuneApp.InstalledPackages;
+            var installedPkgs = m_tuneApp.InstalledPackages; 
             Console.WriteLine($"Total Installed Packages : {installedPkgs.Count}"); // Prints the number of installed packages to the console
 
             foreach (IMtcInstalledPackage p in installedPkgs) // Prints details of all installed packages to the console
@@ -151,7 +151,7 @@ namespace TuneAPI
         }
 
         void CheckForWorkspace()
-        {
+        {/*
             if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
             {
                 m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
@@ -166,7 +166,7 @@ namespace TuneAPI
             if (m_recentWorkspace == null)
             {
                 throw new Exception("ERROR: No recent workspace was found");
-            }
+            }*/
         }
 
         void ConnectToECU()
