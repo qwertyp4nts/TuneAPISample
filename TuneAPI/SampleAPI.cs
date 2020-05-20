@@ -1,6 +1,7 @@
 ﻿using M1Tune;
 using System;
 using System.Diagnostics;
+using System.Threading;
 
 namespace TuneAPI
 {
@@ -74,7 +75,8 @@ namespace TuneAPI
             Console.WriteLine("11: Print the Engine Efficiency table to the console");
             Console.WriteLine("12: Assign a resource to 'Airbox Temperature Sensor Resource' and set its translation");
             Console.WriteLine("13: Set the 'ADR CAN Bus' parameter to 'CAN Bus 1'");
-            Console.WriteLine("14: Exit the program");
+            Console.WriteLine("14: TESTING LOCKED ITEMS");
+            Console.WriteLine("15: Exit the program");
             Console.WriteLine("");
         }
 
@@ -124,6 +126,9 @@ namespace TuneAPI
                         TuneParameterByEnum("ADR CAN Bus", "CAN Bus 1");
                         break;
                     case 14:
+                        LockTest();
+                        break;
+                    case 15:
                         Exit();
                         break;
 
@@ -135,6 +140,504 @@ namespace TuneAPI
             {
                 Debug.Assert(false);
             }
+        }
+
+        void LockTest()
+        {
+            //  ConnectToECU();
+
+            //  TestIMtcDAQInterface();
+            //      m_tuneApp.Devices.Connect(2851);
+
+            //    object a = DAQRealTImeValue("Engine Speed");
+
+            // TestIMtcDAQValueInterface("Inlet Manifold Pressure");
+
+            //   TestIMtcEnumeratorInterface("ADR CAN Bus", "2");
+
+            /*Test IMtcMINMaxValidator
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+            IMtcTable t = tables["Engine Efficiency"];
+            TestIMtcMinMaxValidatorInterface(t.MinMaxValidator);
+            */  //Test IMtcMINMaxValidator
+
+            //   TestIMtcSiteValueInterface();
+            TestIMtcM1TuneApplication1();
+        }
+
+        void TestIMtcM1TuneApplication1()
+        {
+            var instpkgs = m_tuneApp.InstalledPackages;
+            var autologin = m_tuneApp.AutoLoginManager;
+            var queryAPI = m_tuneApp.QueryAPI["sz"];
+        }
+
+        void TestIMtcM1TuneApplication()
+        {
+            /*    m_tuneApp.WorkspaceNew();
+            m_tuneApp.WorkspaceOpen();
+            m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 4"); //Loads workspace by file path
+            */
+            var recents = m_tuneApp.RecentWorkspaces;
+            var demofile = m_tuneApp.DemoFile;
+            m_tuneApp.RunDemo();
+            m_tuneApp.ShowOptions();
+        }
+
+        void TestIMtcM1TuneApplication0()
+        {
+            var recents = m_tuneApp.RecentPackages;
+            var devices = m_tuneApp.Devices;
+            var pkgs = m_tuneApp.Packages;
+        }
+
+        void TestIMtcQueryAPIInterface()
+        {
+            var a = m_tuneApp.QueryAPI["sz"];
+            
+        }
+
+        void TestIMtcPackages1Interface()
+        {
+            var installedPkgs = m_tuneApp.InstalledPackages;
+            var pkg = installedPkgs[0];
+            var pkgs = (IMtcPackages1) m_tuneApp.Packages;
+            pkgs.Load(pkg.FileName, false);
+            pkgs.CloseAll();
+            
+        }
+
+        void TestIMtcPackage3Interface()
+        {
+            var pkg = GetMainPackage();
+            
+            foreach (IMtcEnumeration e in pkg.Enumerations)
+            {
+                for (int i = 0; i < e.Count; i++)
+                {
+                    //Console.WriteLine(e.DisplayName + " " + e.Value);
+                    Console.WriteLine(e.Name);
+                    Console.WriteLine(e.EnumeratorByValue[i].DisplayName);
+                }
+                Console.WriteLine("");
+            }
+            //params tested in TestIMtcParametersInterface
+            //tables tested in TestIMtcTablesInterface
+            //save tested in many other methods of sample
+        }
+
+        void TestIMtcPackageInterface()
+        {
+            var pkg = GetMainPackage();
+            Console.WriteLine("Name: " + pkg.Name);
+            Console.WriteLine("Connected state: " + pkg.Connected);
+            Console.WriteLine("DAQ: " + pkg.DAQ);
+            Console.WriteLine("Firmware ID: " + pkg.FirmwareId);
+            Console.WriteLine("Local file Name: " + pkg.LocalFileName);
+         //   var a = pkg.HashValue[];
+            Console.WriteLine("Vehicle ID: " + pkg.VehicleId);
+
+            pkg.Disconnect();
+        }
+
+        void TestIMtcInstalledPackageInterface()
+        {
+            var installedPkgs = m_tuneApp.InstalledPackages;
+            var pkg = installedPkgs[0];
+            m_tune.Packages.Load(pkg.FileName, false);
+
+            Console.WriteLine($"File Name : {pkg.FileName}");
+            Console.WriteLine($"\tFile VehicleId : {pkg.VehicleId}");
+            Console.WriteLine($"\tFile SerialNumber : {pkg.SerialNumber}");
+            Console.WriteLine($"\tFile Comment : {pkg.Comment}");
+            Console.WriteLine($"\tFile Firmware : {pkg.Firmware}");
+            Console.WriteLine($"\tFile FirmwareVersionName : {pkg.FirmwareVersionName}");
+            Console.WriteLine($"\tFile FirmwareVersion : {pkg.FirmwareVersion}");
+            Console.WriteLine($"\tFile Hardware : {pkg.Hardware}");
+            Console.WriteLine($"\tFile ModifiedDateTime : {pkg.ModifiedDateTime}");
+            Console.WriteLine($"\tFile ImportedDateTime : {pkg.ImportedDateTime}");
+        }
+
+        void TestIMtcParametersInterface()
+        {
+            const string p = "Inlet Air Temperature Sensor Default";
+
+            var pkg = GetMainPackage();
+            var parameterToChange = pkg.Parameters[p];
+
+            Console.WriteLine(p + ": " + parameterToChange.Site.Display.DisplayValue + parameterToChange.Site.Display.DisplayUnit);
+
+            foreach (IMtcParameter pr in pkg.Parameters)
+            {
+                Console.WriteLine(pr.DisplayName + ": " + pr.Site.Display.DisplayValue + pr.Site.Display.DisplayUnit);
+            }
+           // var paramIndex0 = pkg.Parameters.Index[0];
+
+         //   Console.WriteLine(paramIndex0.DisplayName + ": " + paramIndex0.Site.Display.DisplayValue + paramIndex0.Site.Display.DisplayUnit);
+        }
+
+        void TestIMtcTablesInterface()
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+         /*   const string tableName = "Engine Efficiency";
+            var t = tables[tableName];
+            PrintTable(t);*/
+
+            var t2 = tables.Index[0];
+            Console.WriteLine($"Table name: " + t2.DisplayName);
+            PrintTableAxis(t2.XAxis, "X");
+            PrintTableAxis(t2.YAxis, "Y");
+            PrintTableAxis(t2.ZAxis, "Z");
+            //PrintTable(t2);
+
+            var t3 = tables.Index[1];
+            Console.WriteLine($"Table name: " + t3.DisplayName);
+            PrintTableAxis(t3.XAxis, "X");
+            PrintTableAxis(t3.YAxis, "Y");
+            PrintTableAxis(t3.ZAxis, "Z");
+            // PrintTable(t3);
+
+            var t4 = tables.Index[2];
+            Console.WriteLine($"Table name: " + t4.DisplayName);
+            PrintTableAxis(t4.XAxis, "X");
+            PrintTableAxis(t4.YAxis, "Y");
+            PrintTableAxis(t4.ZAxis, "Z");
+
+            var t5 = tables.Index[3];
+            Console.WriteLine($"Table name: " + t5.DisplayName);
+            PrintTableAxis(t5.XAxis, "X");
+            PrintTableAxis(t5.YAxis, "Y");
+            PrintTableAxis(t5.ZAxis, "Z");
+
+            var t6 = tables.Index[4];
+            Console.WriteLine($"Table name: " + t6.DisplayName);
+            PrintTableAxis(t6.XAxis, "X");
+            PrintTableAxis(t6.YAxis, "Y");
+            PrintTableAxis(t6.ZAxis, "Z");
+
+            var t7 = tables.Index[5];
+            Console.WriteLine($"Table name: " + t7.DisplayName);
+            PrintTableAxis(t7.XAxis, "X");
+            PrintTableAxis(t7.YAxis, "Y");
+            PrintTableAxis(t7.ZAxis, "Z");
+
+            var t8 = tables.Index[6];
+            Console.WriteLine($"Table name: " + t8.DisplayName);
+            PrintTableAxis(t8.XAxis, "X");
+            PrintTableAxis(t8.YAxis, "Y");
+            PrintTableAxis(t8.ZAxis, "Z");
+
+            var t9 = tables.Index[7];
+            Console.WriteLine($"Table name: " + t9.DisplayName);
+            PrintTableAxis(t9.XAxis, "X");
+            PrintTableAxis(t9.YAxis, "Y");
+            PrintTableAxis(t9.ZAxis, "Z");
+
+            var t10 = tables.Index[8];
+            Console.WriteLine($"Table name: " + t10.DisplayName);
+            PrintTableAxis(t10.XAxis, "X");
+            PrintTableAxis(t10.YAxis, "Y");
+            PrintTableAxis(t10.ZAxis, "Z");
+
+            var t11 = tables.Index[9];
+            Console.WriteLine($"Table name: " + t11.DisplayName);
+            PrintTableAxis(t11.XAxis, "X");
+            PrintTableAxis(t11.YAxis, "Y");
+            PrintTableAxis(t11.ZAxis, "Z");
+        }
+
+        void TestInterpolate()
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+            const string tableName = "Boost Aim Main";
+            var t = tables[tableName];
+
+            double [] x = { 0, 18000 }; //eng sp * 6
+            double [] y = { 0, 20, 40, 60, 80, 100}; //tpos
+            t.ReShape(true, x, true, y, false, null, false);
+
+            PrintTable(t);
+            double [] x2 = { 0, 9000, 18000 }; //insert value
+            t.ReShape(true, x2, true, y, false, null, true);
+
+            PrintTable(t);
+            //ensure values in 2500  rpm column are 50%
+
+            //repeat test with interpolate off on 2nd reshape. ensure values are 100%
+        }
+
+        void TestIMtcTable()
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+            const string tableName = "Engine Efficiency";
+            var engEff = tables[tableName];
+
+            PrintTable(engEff);
+
+            Console.WriteLine("X Axis: " + engEff.XAxis);
+            Console.WriteLine("Y Axis: " + engEff.YAxis);
+            Console.WriteLine("Z Axis: " + engEff.ZAxis);
+            Console.WriteLine(engEff.Site[0, 0, 0].Display.Value);
+
+            //  double[] x = { 0, 500, 1000, 5000 };
+            //  double[] y = { 50, 70, 90, 110 };
+
+            double[] x = { 0, 3000, 6000, 30000 }; //base units are deg/sec, so multiply all values by 6
+            double[] y = { 50000, 70000, 90000, 110000 }; //base units are Pa, so multiply all values by 1000
+            double[] z = { 90000, 100000, 110000 };
+            engEff.ReShape(true, x, true, y, true, z, false);
+
+            PrintTable(engEff);
+
+            // t.Site[0, 0, 0].Device.Value = -20;
+        }
+
+        void TestIMtcTableAxisDisabledGroup()
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+            const string tableName = "Boost Aim Main";
+            var engEff = tables[tableName];
+            PrintTable(engEff);
+        }
+
+        void TestIMtcTableAxis()
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+            const string tableName = "Engine Efficiency";
+            var engEff = tables[tableName];
+            PrintTable(engEff);
+
+            IMtcTableAxis itemX = engEff.XAxis;
+            Console.WriteLine("Max sites: " + itemX.MaxSites);
+            Console.WriteLine("Used sites: " + itemX.UsedSites);
+            Console.WriteLine("Site value by index: " + itemX.Site[0].Display.DisplayValue);
+
+            Console.WriteLine("ReadOnly: " + itemX.ReadOnly);
+            Console.WriteLine("Visible: " + itemX.Visible);
+
+            IMtcTableAxis itemY = engEff.YAxis;
+            Console.WriteLine("Max sites: " + itemY.MaxSites);
+            Console.WriteLine("Used sites: " + itemY.UsedSites);
+            Console.WriteLine("Site value by index: " + itemY.Site[0].Display.DisplayValue);
+
+            Console.WriteLine("ReadOnly: " + itemY.ReadOnly);
+            Console.WriteLine("Visible: " + itemY.Visible);
+
+            IMtcTableAxis itemZ = engEff.ZAxis;
+            Console.WriteLine("Max sites: " + itemZ.MaxSites);
+            Console.WriteLine("Used sites: " + itemZ.UsedSites);
+            Console.WriteLine("Site value by index: " + itemZ.Site[0].Display.DisplayValue);
+
+            Console.WriteLine("ReadOnly: " + itemZ.ReadOnly);
+            Console.WriteLine("Visible: " + itemZ.Visible);
+        }
+
+        void TestIMtcAdjustItemInterface()
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+            const string tableName = "Engine Efficiency Adaption";
+            var engEff = tables[tableName];
+            PrintTable(engEff);
+
+            IMtcAdjustItem item = engEff;
+            Console.WriteLine("DisplayName: " + item.DisplayName);
+            try
+            {
+                Console.WriteLine("Enumeration: " + item.Enumeration);
+            }
+            catch (Exception e) {
+                Console.WriteLine(e.ToString());
+            }
+            try
+            {
+                Console.WriteLine("MinMaxValidator Min: " + item.MinMaxValidator.Min.DisplayValue + item.MinMaxValidator.Min.DisplayUnit + Environment.NewLine + "MinMaxValidator Max: " + item.MinMaxValidator.Max.DisplayValue + item.MinMaxValidator.Max.DisplayUnit);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            Console.WriteLine("ReadOnly: " + item.ReadOnly);
+            Console.WriteLine("Visible: " + item.Visible);
+            Console.WriteLine("DataType: " + item.DataType);
+
+        }
+
+        void Test21270()
+        {
+            //set password in ecu
+            m_tuneApp.Devices.Connect(2851);
+
+            IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
+        }
+
+            void Test21265()
+        {
+            m_tuneApp.Devices.Connect(2851);
+
+            IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
+
+            m_tuneApp.Packages.Load(recentPkg.Path, true);
+        }
+
+        void TestIMtcMinMaxValidatorInterface(IMtcMinMaxValidator v)
+        {
+            var min = v.Min;
+            if (min != null)
+            {
+                Console.WriteLine("Min :" + min.DisplayValue + " " + min.DisplayUnit);
+            }
+
+            var max = v.Max;
+            if (max != null)
+            {
+                Console.WriteLine("Max :" + max.DisplayValue + " " + max.DisplayUnit);
+            }
+
+            double value = 6;
+            value = 6; Console.WriteLine("{0} is {1}", value, v.Validate(value, false));
+            value = 6; Console.WriteLine("{0} is {1}", value, v.Validate(value));
+            value = 15.0; Console.WriteLine("{0} is {1}", value, v.Validate(value, false));
+            value = 15; Console.WriteLine("{0} is {1}", value, v.Validate(value));
+            value = 40; Console.WriteLine("{0} is {1}", value, v.Validate(value));
+            value = 200; Console.WriteLine("{0} is {1}", value, v.Validate(value));
+            value = 201; Console.WriteLine("{0} is {1}", value, v.Validate(value));
+        }
+
+        void TestIMtcSiteValueInterface()
+        {
+            //testing of IMtcSite Display. Device is tested in SetParameter method
+            var p = "Coolant Temperature Warning Maximum";
+            var pkg = GetMainPackage();
+            var parameterToChange = pkg.Parameters[p];
+                Console.WriteLine("Found :" + p);
+            Console.WriteLine("Value: " + parameterToChange.Site.Display.Value);
+            Console.WriteLine("Unit: " + parameterToChange.Site.Display.Unit);
+            Console.WriteLine("DisplayValue: " + parameterToChange.Site.Display.DisplayValue);
+            Console.WriteLine("DisplayUnit: " + parameterToChange.Site.Display.DisplayUnit);
+            Console.WriteLine("ValueType: " + parameterToChange.Site.Display.ValueType);
+            parameterToChange.Site.Device.Value = 33.0;
+            
+        }
+
+        void TestIMtcEnumeratorInterface(string channelName, string channelValue)
+        {
+            var pkg = GetMainPackage();
+
+            var parameterToChange = pkg.Parameters[channelName];
+            if (parameterToChange != null)
+            {
+                Console.WriteLine("Found: " + channelName);
+                var v = parameterToChange.Enumeration.EnumeratorByDisplayName["CAN Bus 1"].Value;
+                Console.WriteLine("Enum of CAN Bus 1: " + v);
+                v = parameterToChange.Enumeration.EnumeratorByValue[v].Value;
+                Console.WriteLine("Enum from value: " + v);
+                var vv = parameterToChange.Enumeration.EnumeratorByValue[v].DisplayName;
+                Console.WriteLine("Enum name from index: " + vv);
+                v = parameterToChange.Enumeration.Name[v];
+                Console.WriteLine("Whatever this is: " + v);
+
+            }
+        }
+
+        void TestIMtcDAQValueInterface(string channelToSearchFor)
+        {
+            var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+
+            string liveChannelValue = "";
+
+            foreach (IMtcDAQValue channel in allChannels)
+            {
+                if (channel.DisplayName.Equals(channelToSearchFor))
+                {
+                    liveChannelValue = channel.DisplayValue + " " + channel.DisplayUnit;
+                    Console.WriteLine(liveChannelValue);
+                    Console.WriteLine("DisplayName: " + channel.DisplayName);
+                    Console.WriteLine("DisplayValue: " + channel.DisplayValue);
+                    Console.WriteLine("DisplayUnit: " + channel.DisplayUnit);
+                    Console.WriteLine("Value: " + channel.Value);
+                    Console.WriteLine("Time: " + channel.Time);
+                    Console.WriteLine("Index: " + channel.Index);
+                    break;
+                }
+            }
+        }
+
+        public object[] DAQRealTImeValue(string val)
+        {
+            return m_tuneApp.Packages[0].DAQ.GetRealTimeValue(new string[] { val });
+        }
+
+        void TestDAQGetRealTimeValueByChannelName()
+        {
+            ConnectToECU();
+            //   string[] ids = { "Engine Speed", "ECU Uptime" };
+            //   var ids = new string[] { "Engine Speed" };
+
+            //       GetChannelValue("Engine Speed");
+            var values = m_tuneApp.Packages[0].DAQ.GetRealTimeValue(new string[] { "Engine Speed" });
+            /*
+            foreach (IMtcDAQValue v in values)
+            {
+                double asd = v.Value;
+                Console.WriteLine($"{v.DisplayName} = {asd} {v.DisplayUnit}");
+                    }*/
+            /*
+            var e = m_tuneApp.Packages[0].DAQ.GetRealTimeValue("Engine Speed");
+
+            Console.WriteLine(m_tuneApp.Packages[0].DAQ.Time);
+        
+            SecsToMicroSecs(m_tuneApp.Packages[0].DAQ.Time);
+            var a = m_tuneApp.Packages[0].DAQ.GetValueAll(SecsToMicroSecs(5.12));
+            */
+        }
+        void TestIMtcDAQInterface()
+        {
+            m_tuneApp.Devices.Connect(2851); //locked. Connect to device manually when testing without licence
+            var a = m_tuneApp.Packages[0].DAQ.Active;
+            var b = m_tuneApp.Packages[0].DAQ.Time;
+            var c = m_tuneApp.Packages[0].DAQ.GetValue(1, 00.10);
+            var d = m_tuneApp.Packages[0].DAQ.GetValueAll(00.10);
+            var e = m_tuneApp.Packages[0].DAQ.GetRealTimeValue(1);
+            var f = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+        }
+
+        double SecsToMicroSecs(double s)
+        {
+            return s * 1e6;
+        }
+
+        void TestInterfaceIMtcDevices()
+        {
+            //breakpoint on all to allow for manual test setup
+            var d = m_tuneApp.Devices[0]; //this is "Item" and it should be unlocked (return something) //unlocked
+            m_tuneApp.Devices.RetrieveLogData(2851); //locked BUG: should be unlocked
+            m_tuneApp.Devices.Connect(2851); //locked
+            m_tuneApp.Devices.Disconnect(2851); //locked
+        }
+
+        void TestInterfaceIMtcDevice()
+        {
+            CheckForWorkspace(); //unlocked
+
+            foreach (IMtcDevice d in m_tuneApp.Devices)
+            {
+                Console.WriteLine("Name: " + d.Name); // 15:2851:Start GP:5
+                Console.WriteLine("DisplayName: " + d.DisplayName); //M150 #2851 Start GP
+                Console.WriteLine("DisplaySerial: " + d.DisplaySerial); //2851
+                Console.WriteLine("Serial: " + d.Serial); //2851
+                Console.WriteLine("Type: " + d.Type); //M150
+                Console.WriteLine("Description: " + d.Description); //
+                Console.WriteLine("Address: " + d.Address); //[fe80::72b3:d5ff:fe71:e9c3%13]:5555
+                Console.WriteLine("NetworkInterface: " + d.NetworkInterface); //13
+            }
+            //result in comments above. Same result without licence. Methods correctly unlocked
         }
 
         void PrintAllPackages()
