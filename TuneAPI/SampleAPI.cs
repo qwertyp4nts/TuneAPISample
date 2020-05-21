@@ -142,6 +142,25 @@ namespace TuneAPI
             }
         }
 
+        void TestResourceAssignment()
+        {
+            string channelName = "Airbox Temperature Sensor Resource";
+            string channelValue = "11";
+            var pkg = GetMainPackage();
+
+            var parameterToChange = pkg.Parameters[channelName];
+
+            foreach (IMtcParameter p in pkg.Parameters)
+            {
+                if(p.Site.Device.DisplayValue == "Analogue Voltage Input 12")
+                {
+                    throw new Exception("Resource already assigned to " + p.DisplayName);
+                }
+            }
+            double v = double.Parse(channelValue);
+            parameterToChange.Site.Device.Value = v;
+        }
+
         void LockTest()
         {
             //  ConnectToECU();
@@ -163,7 +182,7 @@ namespace TuneAPI
             */  //Test IMtcMINMaxValidator
 
             //   TestIMtcSiteValueInterface();
-            TestIMtcM1TuneApplication1();
+            TestResourceAssignment();
         }
 
         void TestIMtcM1TuneApplication1()
