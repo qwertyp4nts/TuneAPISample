@@ -10,11 +10,10 @@ namespace TuneAPI
         IMtcM1TuneApplication1  m_tuneApp;
         bool                    m_ECUConnectionState;
         uint                    m_ConnectedECUSerialNumber;
-        IMtcRecentFile          m_recentWorkspace;
 
         [STAThread]
         public static void Main(string[] args)
-        {
+        {  
             Register();
 
             SampleAPI api = new SampleAPI();
@@ -25,6 +24,7 @@ namespace TuneAPI
                     api.PrintIntroHelp();
                     try
                     {
+                        api.CheckForAPILicence();
                         var option = int.Parse(Console.ReadLine());
                         api.ProcessOption(option);
                     }
@@ -75,6 +75,7 @@ namespace TuneAPI
             Console.WriteLine("12: Assign a resource to 'Airbox Temperature Sensor Resource' and set its translation");
             Console.WriteLine("13: Set the 'ADR CAN Bus' parameter to 'CAN Bus 1'");
             Console.WriteLine("14: Exit the program");
+            Console.WriteLine("15: Testing");
             Console.WriteLine("");
         }
 
@@ -126,6 +127,9 @@ namespace TuneAPI
                     case 14:
                         Exit();
                         break;
+                    case 15:
+                        Test21311();
+                        break;
 
                     default:
                         break;
@@ -137,36 +141,83 @@ namespace TuneAPI
             }
         }
 
-        void PrintAllPackages()
+        void Test21311()
         {
+            var activated = m_tuneApp.IsActivated();
+            Console.WriteLine("Activated? " + activated.ToString());
+        }
+
+        void Test21262()
+        {
+            ConnectToECU();
+            LoadRecentPackage();
+            //make a change to package when breakpoint is hit and save package
+            ConnectToECU();
+            //what happens?
+        }
+
+        void Test21274()
+        {
+            m_tuneApp.Packages.Open();
+        }
+        void ReturnDetailsOfOpenPackage()
+        {
+            ConnectToECU();
+            var pkg = GetMainPackage();
+            Console.WriteLine($"File Name : {pkg.Info.FileName}");
+            Console.WriteLine($"\tFile VehicleId : {pkg.Info.VehicleId}");
+            Console.WriteLine($"\tFile SerialNumber : {pkg.Info.SerialNumber}");
+            Console.WriteLine($"\tFile Comment : {pkg.Info.Comment}");
+            Console.WriteLine($"\tFile FirmwareVersionName : {pkg.Info.FirmwareVersionName}");
+            Console.WriteLine($"\tFile FirmwareVersion : {pkg.Info.FirmwareVersion}");
+            Console.WriteLine($"\tFile Hardware : {pkg.Info.Hardware}");
+            Console.WriteLine($"\tFile ModifiedDateTime : {pkg.Info.ModifiedDateTime}");
+            Console.WriteLine($"\tFile ImportedDateTime : {pkg.Info.ImportedDateTime}");
+        }
+
+        void PrintAllPackages()
+        { 
             CheckForInstalledPackage();
 
             var installedPkgs = m_tuneApp.InstalledPackages; 
             Console.WriteLine($"Total Installed Packages : {installedPkgs.Count}"); // Prints the number of installed packages to the console
 
-            foreach (IMtcInstalledPackage p in installedPkgs) // Prints details of all installed packages to the console
+            foreach (IMtcPackageInfo p in installedPkgs) // Prints details of all installed packages to the console
             {
                 PrintInstalledPackage(p);
             }
         }
 
         void CheckForWorkspace()
-        {/*
-            if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
-            {
-                m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
-                if (m_recentWorkspace != null)
-                {
-                    var f = m_recentWorkspace.Path;
-                    m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace}
-                    //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
-                }
-            }
-
-            if (m_recentWorkspace == null)
+        {
+            if (m_tuneApp.RecentWorkspaces.Count < 1)
             {
                 throw new Exception("ERROR: No recent workspace was found");
-            }*/
+            }
+                /*
+                if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
+                {
+                    m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
+                    if (m_recentWorkspace != null)
+                    {
+                        var f = m_recentWorkspace.Path;
+                        m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace}
+                        //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
+                    }
+                }
+
+                if (m_recentWorkspace == null)
+                {
+                    throw new Exception("ERROR: No recent workspace was found");
+                }*/
+            }
+
+        void OpenWorkspace()
+        {
+            //The most recent workspace is automatically loaded by performing many other methods, if a workspace is not already loaded
+            var f = m_tuneApp.RecentWorkspaces[0].Path;
+            m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace}
+            m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
         }
 
         void ConnectToECU()
@@ -201,7 +252,7 @@ namespace TuneAPI
             CheckForRecentPackage();
  
             IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
-            m_tuneApp.Packages.Load(recentPkg.Path, true);
+            m_tuneApp.Packages.Load(recentPkg.Path);
         }
 
         void LoadPackageByName()
@@ -215,7 +266,7 @@ namespace TuneAPI
 
             var installedPkgs = m_tuneApp.InstalledPackages;
 
-            foreach (IMtcInstalledPackage p in installedPkgs)
+            foreach (IMtcPackageInfo p in installedPkgs)
             {
                 PrintInstalledPackage(p);
                 if (p.Comment.Equals(pkgFileName) && p.Hardware.Equals(ecuModel))
@@ -416,7 +467,9 @@ namespace TuneAPI
             {
                 double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
 
-                t.ReShape(true, x, false, null, false, null, true);
+                // t.ReShape(true, x, false, null, false, null, true);
+                // t.ReShape(x, null, null, true);
+//#TODO reimplement reshape
 
                 t.Site[0, 0, 0].Device.Value = -20;
                 t.Site[1, 0, 0].Device.Value = 0;
@@ -496,7 +549,7 @@ namespace TuneAPI
             }
         }
 
-        static void PrintInstalledPackage(IMtcInstalledPackage pkg)
+        static void PrintInstalledPackage(IMtcPackageInfo pkg)
         {
             Console.WriteLine($"File Name : {pkg.FileName}");
             Console.WriteLine($"\tFile VehicleId : {pkg.VehicleId}");
@@ -536,7 +589,7 @@ namespace TuneAPI
             {
                 Console.WriteLine($"Table '{t.DisplayName}':");
 
-                PrintAjustItem(t);
+                PrintAdjustItem(t);
 
                 PrintTableAxis(t.XAxis, "X");
                 PrintTableAxis(t.YAxis, "Y");
@@ -544,7 +597,7 @@ namespace TuneAPI
             }
         }
 
-        static void PrintAjustItem(IMtcAdjustItem item)
+        static void PrintAdjustItem(IMtcAdjustItem item)
         {
             Console.WriteLine($"{item.DisplayName} ({(item.ReadOnly ? "Readonly" : "Editable")} and {(item.Visible ? "Visible" : "Invisible")}) : {item.DataType}");
             PrintEnumeration(item.Enumeration);
@@ -555,7 +608,7 @@ namespace TuneAPI
             if (axis != null)
             {
                 Console.WriteLine($"Axis {name}: ");
-                PrintAjustItem(axis);
+                PrintAdjustItem(axis);
                 Console.WriteLine($"\tMax Sites : {axis.MaxSites}");
                 Console.WriteLine($"\tUsed Sites : {axis.UsedSites}");
                 Console.WriteLine($"\tData Type : {axis.DataType}");
@@ -563,7 +616,7 @@ namespace TuneAPI
                 Console.Write("\tValues:");
                 for (uint i = 0; i < axis.UsedSites; i++)
                 {
-                    Console.Write(axis.Site[i].Display.DisplayValue);
+                    Console.Write(axis.Site[i].Display.DisplayValue + " ");
                 }
                 Console.WriteLine();
             }
@@ -581,6 +634,15 @@ namespace TuneAPI
 
                 for (int i = 0; i < e.Count; i++)
                     Console.WriteLine($"{e[i].Value} : {e[i].DisplayName}");
+            }
+        }
+
+        void CheckForAPILicence()
+        {
+            var activated = m_tuneApp.IsActivated();
+            if (activated == false)
+            {
+                throw new Exception("Failed to find valid Tune API licence.");
             }
         }
     }
