@@ -21,10 +21,10 @@ namespace TuneAPI
             {
                 while (true)
                 {
+                    api.CheckForAPILicence();
                     api.PrintIntroHelp();
                     try
                     {
-                        api.CheckForAPILicence();
                         var option = int.Parse(Console.ReadLine());
                         api.ProcessOption(option);
                     }
