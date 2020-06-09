@@ -264,7 +264,6 @@ namespace TuneAPI
                 {
                     if (x != null)
                     {
-                        //xShape = t.XAxis.Shape;
                         xShape.Values = x;
                         if (xUnit != null)
                         {
@@ -277,7 +276,6 @@ namespace TuneAPI
                 {
                     if (y != null)
                     {
-                        //yShape = t.YAxis.Shape;
                         yShape.Values = y;
                         if (yUnit != null)
                         {
@@ -290,7 +288,6 @@ namespace TuneAPI
                 {
                     if (z != null)
                     {
-                        //zShape = t.ZAxis.Shape;
                         zShape.Values = z;
                         if (zUnit != null)
                         {
