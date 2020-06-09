@@ -21,6 +21,7 @@ namespace TuneAPI
             {
                 while (true)
                 {
+                    api.CheckForAPILicence();
                     api.PrintIntroHelp();
                     try
                     {
@@ -598,5 +599,15 @@ namespace TuneAPI
                     Console.WriteLine($"{e[i].Value} : {e[i].DisplayName}");
             }
         }
+
+        void CheckForAPILicence()
+        {
+            var activated = m_tuneApp.IsActivated();
+            if (activated == false)
+            {
+                throw new Exception("Failed to find valid Tune API licence.");
+            }
+        }
+
     }
 }
