@@ -10,7 +10,6 @@ namespace TuneAPI
         IMtcM1TuneApplication1  m_tuneApp;
         bool                    m_ECUConnectionState;
         uint                    m_ConnectedECUSerialNumber;
-        IMtcRecentFile          m_recentWorkspace;
 
         [STAThread]
         public static void Main(string[] args)
@@ -150,11 +149,13 @@ namespace TuneAPI
             }
         }
 
-        void CheckForWorkspace()
-        {/*
-            if (m_recentWorkspace == null && m_tuneApp.RecentWorkspaces.Count > 0)
+        void OpenWorkspace()
+        {
+            //Most functions open the most recent workspace. The following code is provided if the user wants to open a specific workspace
+            if (m_tuneApp.RecentWorkspaces.Count > 0)
             {
-                m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
+                var m_recentWorkspace = m_tuneApp.RecentWorkspaces[0];
+
                 if (m_recentWorkspace != null)
                 {
                     var f = m_recentWorkspace.Path;
@@ -162,16 +163,27 @@ namespace TuneAPI
                     //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
                 }
             }
+        }
+        void OpenPasswordProtectedPackage()
+        {
+            //Pre-requisite: The password must already be set in the package. This function does not set password, it only allows login
+            m_tuneApp.AutoLoginManager.Enabled = true; //Setting this to true hides the security dialog, so we can login silently with the API
+            m_tuneApp.AutoLoginManager.SetLoginPassword("banana man", "cetomm"); //Store the username and password, for silent login
+            m_tuneApp.AutoLoginManager.SetAutoLoginName("banana man"); //Choose the user with which to login
+            m_tuneApp.Devices.Connect(2851);
 
-            if (m_recentWorkspace == null)
+            try
             {
-                throw new Exception("ERROR: No recent workspace was found");
-            }*/
+                var pkg = GetMainPackage();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Check username and password");
+            }
         }
 
         void ConnectToECU()
         {
-            CheckForWorkspace();
             CheckECUConnectionStatus();
 
             if (m_ECUConnectionState == false)
@@ -197,7 +209,6 @@ namespace TuneAPI
 
         void LoadRecentPackage()
         {
-            CheckForWorkspace();
             CheckForRecentPackage();
  
             IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
@@ -210,7 +221,6 @@ namespace TuneAPI
             const string ecuModel = "M150"; //The hardware device type          
             bool foundPackage = false;
 
-            CheckForWorkspace();
             CheckForInstalledPackage();
 
             var installedPkgs = m_tuneApp.InstalledPackages;
