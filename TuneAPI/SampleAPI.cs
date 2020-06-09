@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Timers;
 
 namespace TuneAPI
 {
@@ -126,7 +127,7 @@ namespace TuneAPI
                         TuneParameterByEnum("ADR CAN Bus", "CAN Bus 1");
                         break;
                     case 14:
-                        LockTest();
+                        Tunetable2();
                         break;
                     case 15:
                         Exit();
@@ -142,21 +143,217 @@ namespace TuneAPI
             }
         }
 
+        void Tunetable2()
+        {
+            double[] x = { 0, 500, 5000 };
+            double[] y = { 30, 100 };
+            double[] z = { 100, 102 };
+            TuneTableNew("Engine Efficiency", x, "rpm", y, "kPa", z, "kPa", true, true, true);
+
+        }
+
+        /*
+        void SetResourceSafely()
+        {
+            string channelName = "Airbox Temperature Sensor Resource";
+            string channelValue = "Analogue Voltage Input 12";
+            var pkg = GetMainPackage();
+
+            var parameterToChange = pkg.Parameters[channelName];
+
+            var enumerator = pkg.Parameters[channelName].Enumeration.EnumeratorByDisplayName["Analogue Voltage Input 12"];
+
+
+            foreach (IMtcParameter p in pkg.Parameters)
+            {
+                if (p.Site.Device.DisplayValue == "Analogue Voltage Input 12")
+                {
+                    throw new Exception("Resource already assigned to " + p.DisplayName);
+                }
+            }
+            double v = double.Parse(channelValue);
+            parameterToChange.Site.Device.Value = v;
+        }
+        */
+
+        void TestLoginAsGuestWhenKeyPresent()
+        {
+            m_tuneApp.AutoLoginManager.Enabled = true;
+            m_tuneApp.AutoLoginManager.SetLoginKey("raptor", "C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\raptorKey.key"); //Store the username and password, for silent login
+            //m_tuneApp.AutoLoginManager.ClearCredentials();
+            //m_tuneApp.AutoLoginManager.SetAutoLoginName(""); //Guest has package view privileges now
+            m_tuneApp.Devices.Connect(2851);
+
+            var pkg = GetMainPackage();
+            Debug.Assert(pkg.DAQ.Active.Channels.Count > 0);
+        }
+
+        void LoginUsingKeyfile()
+        {
+            m_tuneApp.AutoLoginManager.Enabled = true;
+            m_tuneApp.AutoLoginManager.SetLoginKey("raptor", "C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\raptorKey.key"); //Store the username and password, for silent login
+            m_tuneApp.AutoLoginManager.SetAutoLoginName("raptor"); //Choose the user with which to login
+            m_tuneApp.Devices.Connect(2851);
+
+            var pkg = GetMainPackage();
+            Debug.Assert(pkg.DAQ.Active.Channels.Count > 0);
+            m_tuneApp.Devices.Disconnect(2851);
+            m_tuneApp.AutoLoginManager.ClearCredentials();
+            m_tuneApp.Devices.Connect(2851);
+
+            pkg = GetMainPackage();
+            Debug.Assert(pkg.DAQ.Active.Channels.Count == 0);
+
+            m_tuneApp.AutoLoginManager.SetLoginKey("raptor", "C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\raptorKeyy.key"); //Store the username and password, for silent login
+            m_tuneApp.AutoLoginManager.SetAutoLoginName("raptor"); //Choose the user with which to login
+            m_tuneApp.Devices.Connect(2851);
+
+            Debug.Assert(m_tuneApp.Packages.Count == 0);
+        }
+
+        void TestPasswordChanges()
+        {
+            m_tuneApp.AutoLoginManager.Enabled = true;
+            m_tuneApp.AutoLoginManager.SetLoginPassword("banana man", "cetom"); //Store the username and password, for silent login
+            m_tuneApp.AutoLoginManager.SetAutoLoginName("banana man"); //Choose the user with which to login
+            m_tuneApp.Devices.Connect(2851);
+
+            var pkg = GetMainPackage();
+            Debug.Assert(pkg.DAQ.Active.Channels.Count > 0);
+            m_tuneApp.Devices.Disconnect(2851);
+            m_tuneApp.AutoLoginManager.ClearCredentials();
+            m_tuneApp.Devices.Connect(2851);
+
+            pkg = GetMainPackage();
+            Debug.Assert(pkg.DAQ.Active.Channels.Count == 0);
+        }
+
+        void OpenPasswordProtectedPackage()
+        {
+            //Pre-requisite: The password must already be set in the package. This function does not set password, it only allows login
+            m_tuneApp.AutoLoginManager.Enabled = true; //Setting this to true hides the security dialog, so we can login silently with the API
+            m_tuneApp.AutoLoginManager.SetLoginPassword("banana man", "cetomm"); //Store the username and password, for silent login
+            m_tuneApp.AutoLoginManager.SetAutoLoginName("banana man"); //Choose the user with which to login
+            m_tuneApp.Devices.Connect(2851);
+
+            try
+            {
+                var pkg = GetMainPackage();
+            }
+            catch (Exception e) {
+                Console.WriteLine("Check username and password");
+            }
+        }
+
+        void TuneTableNew(string tableName, double[] x = null, string xUnit = null, double[] y = null, string yUnit = null, double[] z = null, string zUnit = null, bool xEnabled = false, bool yEnabled = false, bool zEnabled = false)
+        {//maybe call it setupTableAxis, since you are not actually tuning
+            ConnectToECU();
+
+            var pkg = GetMainPackage();
+
+            var tables = pkg.Tables;
+            IMtcTable t = tables[tableName];
+
+            if (t != null)
+            {
+                IMtcTableAxisShape xShape = t.XAxis.Shape;
+                IMtcTableAxisShape yShape = t.YAxis.Shape;
+                IMtcTableAxisShape zShape = t.ZAxis.Shape;
+
+                if (xEnabled == true)
+                {
+                    if (x != null)
+                    {
+                        //xShape = t.XAxis.Shape;
+                        xShape.Values = x;
+                        if (xUnit != null)
+                        {
+                            xShape.Unit = xUnit;
+                        }
+                    }
+                }
+
+                if (yEnabled == true)
+                {
+                    if (y != null)
+                    {
+                        //yShape = t.YAxis.Shape;
+                        yShape.Values = y;
+                        if (yUnit != null)
+                        {
+                            yShape.Unit = yUnit;
+                        }
+                    }
+                }
+
+                if (zEnabled == true)
+                {
+                    if (z != null)
+                    {
+                        //zShape = t.ZAxis.Shape;
+                        zShape.Values = z;
+                        if (zUnit != null)
+                        {
+                            zShape.Unit = zUnit;
+                        }
+                    }
+                }
+
+                t.ReShape(xShape, yShape, zShape, true);
+
+                t.Site[0, 0, 0].Display.Value = 10;
+                t.Site[1, 0, 0].Display.Value = 147;
+                t.Site[2, 0, 0].Display.Value = 200;
+                t.Site[0, 1, 0].Display.Value = 40;
+                t.Site[1, 1, 0].Display.Value = 60;
+                t.Site[2, 1, 0].Display.Value = 100;
+            }
+            else
+            {
+                Console.WriteLine($"{t.DisplayName} was null. Check table");
+            }
+            //SavePackage(pkg); //Save again after making changes to the table. This is commented out to make the demo self-contained.
+        }
+
+        void CheckParameterFindSpeed()
+        {
+            const string c = "Wheel Speed Rear Drive Sensor Pin Threshold";
+
+            {
+                var pkg = GetMainPackage();
+                var parameterToChange = pkg.Parameters[c];
+                if (parameterToChange != null)
+                {
+                    Console.WriteLine("Found :" + c);
+                    Console.WriteLine("Parameter value = " + parameterToChange.Site.Device.Value);
+                }
+            }
+        }
+
         void TestResourceAssignment()
         {
+            Stopwatch stopWatch = new Stopwatch();
             string channelName = "Airbox Temperature Sensor Resource";
             string channelValue = "11";
             var pkg = GetMainPackage();
 
             var parameterToChange = pkg.Parameters[channelName];
 
+            stopWatch.Start();
             foreach (IMtcParameter p in pkg.Parameters)
             {
-                if(p.Site.Device.DisplayValue == "Analogue Voltage Input 12")
-                {
-                    throw new Exception("Resource already assigned to " + p.DisplayName);
-                }
+                var enumerator = pkg.Parameters[channelName].Enumeration.EnumeratorByDisplayName["Analogue Voltage Input 12"];
+                  if (enumerator != null)
+                      {
+                      throw new Exception("Resource already assigned to " + p.DisplayName);
+                  }
             }
+            stopWatch.Stop();
+            TimeSpan ts = stopWatch.Elapsed;
+            // Format and display the TimeSpan value.
+            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}",ts.Hours, ts.Minutes, ts.Seconds,ts.Milliseconds / 10);
+            Console.WriteLine("RunTime " + elapsedTime);
+
             double v = double.Parse(channelValue);
             parameterToChange.Site.Device.Value = v;
         }
@@ -286,14 +483,20 @@ namespace TuneAPI
             var parameterToChange = pkg.Parameters[p];
 
             Console.WriteLine(p + ": " + parameterToChange.Site.Display.DisplayValue + parameterToChange.Site.Display.DisplayUnit);
-
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
             foreach (IMtcParameter pr in pkg.Parameters)
             {
                 Console.WriteLine(pr.DisplayName + ": " + pr.Site.Display.DisplayValue + pr.Site.Display.DisplayUnit);
             }
-           // var paramIndex0 = pkg.Parameters.Index[0];
+            stopWatch.Stop();
+            TimeSpan ts = stopWatch.Elapsed;
+            // Format and display the TimeSpan value.
+            string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10);
+            Console.WriteLine("RunTime " + elapsedTime);
+            // var paramIndex0 = pkg.Parameters.Index[0];
 
-         //   Console.WriteLine(paramIndex0.DisplayName + ": " + paramIndex0.Site.Display.DisplayValue + paramIndex0.Site.Display.DisplayUnit);
+            //   Console.WriteLine(paramIndex0.DisplayName + ": " + paramIndex0.Site.Display.DisplayValue + paramIndex0.Site.Display.DisplayUnit);
         }
 
         void TestIMtcTablesInterface()
@@ -376,11 +579,11 @@ namespace TuneAPI
 
             double [] x = { 0, 18000 }; //eng sp * 6
             double [] y = { 0, 20, 40, 60, 80, 100}; //tpos
-            t.ReShape(true, x, true, y, false, null, false);
+            //t.ReShape(true, x, true, y, false, null, false);
 
             PrintTable(t);
             double [] x2 = { 0, 9000, 18000 }; //insert value
-            t.ReShape(true, x2, true, y, false, null, true);
+            //t.ReShape(true, x2, true, y, false, null, true);
 
             PrintTable(t);
             //ensure values in 2500  rpm column are 50%
@@ -408,7 +611,13 @@ namespace TuneAPI
             double[] x = { 0, 3000, 6000, 30000 }; //base units are deg/sec, so multiply all values by 6
             double[] y = { 50000, 70000, 90000, 110000 }; //base units are Pa, so multiply all values by 1000
             double[] z = { 90000, 100000, 110000 };
-            engEff.ReShape(true, x, true, y, true, z, false);
+
+            var x_shape = engEff.XAxis.Shape;
+            x_shape.Values = x;
+            engEff.YAxis.Shape.Values = y;
+            engEff.ZAxis.Shape.Values = z;
+
+            engEff.ReShape(engEff.XAxis.Shape, engEff.YAxis.Shape, engEff.ZAxis.Shape, true);
 
             PrintTable(engEff);
 
@@ -666,7 +875,7 @@ namespace TuneAPI
             var installedPkgs = m_tuneApp.InstalledPackages;
             Console.WriteLine($"Total Installed Packages : {installedPkgs.Count}"); // Prints the number of installed packages to the console
 
-            foreach (IMtcInstalledPackage p in installedPkgs) // Prints details of all installed packages to the console
+            foreach (IMtcPackageInfo p in installedPkgs) // Prints details of all installed packages to the console
             {
                 PrintInstalledPackage(p);
             }
@@ -737,7 +946,7 @@ namespace TuneAPI
 
             var installedPkgs = m_tuneApp.InstalledPackages;
 
-            foreach (IMtcInstalledPackage p in installedPkgs)
+            foreach (IMtcPackageInfo p in installedPkgs)
             {
                 PrintInstalledPackage(p);
                 if (p.Comment.Equals(pkgFileName) && p.Hardware.Equals(ecuModel))
@@ -927,7 +1136,7 @@ namespace TuneAPI
             ConnectToECU();
             
             var pkg = GetMainPackage();
-            TuneParameter("Airbox Temperature Sensor Resource", "11");
+            TuneParameter("Airbox Temperature Sensor Resource", "10");
 
             SavePackage(pkg); //Setting a resource requires package save
             CheckECUConnectionStatus(true); //Setting resource requires ECU reset following a save. Ensure we re-connect successfully.
@@ -938,7 +1147,7 @@ namespace TuneAPI
             {
                 double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
 
-                t.ReShape(true, x, false, null, false, null, true);
+                //t.ReShape(true, x, false, null, false, null, true);
 
                 t.Site[0, 0, 0].Device.Value = -20;
                 t.Site[1, 0, 0].Device.Value = 0;
@@ -1018,7 +1227,7 @@ namespace TuneAPI
             }
         }
 
-        static void PrintInstalledPackage(IMtcInstalledPackage pkg)
+        static void PrintInstalledPackage(IMtcPackageInfo pkg)
         {
             Console.WriteLine($"File Name : {pkg.FileName}");
             Console.WriteLine($"\tFile VehicleId : {pkg.VehicleId}");
