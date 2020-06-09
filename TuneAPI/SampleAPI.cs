@@ -125,6 +125,9 @@ namespace TuneAPI
                     case 14:
                         Exit();
                         break;
+                    case 15:
+                        OpenPasswordProtectedPackage();
+                        break; //TODO DELETE CASE 15
 
                     default:
                         break;
@@ -143,7 +146,7 @@ namespace TuneAPI
             var installedPkgs = m_tuneApp.InstalledPackages; 
             Console.WriteLine($"Total Installed Packages : {installedPkgs.Count}"); // Prints the number of installed packages to the console
 
-            foreach (IMtcInstalledPackage p in installedPkgs) // Prints details of all installed packages to the console
+            foreach (IMtcPackageInfo p in installedPkgs) // Prints details of all installed packages to the console
             {
                 PrintInstalledPackage(p);
             }
@@ -168,17 +171,19 @@ namespace TuneAPI
         {
             //Pre-requisite: The password must already be set in the package. This function does not set password, it only allows login
             m_tuneApp.AutoLoginManager.Enabled = true; //Setting this to true hides the security dialog, so we can login silently with the API
-            m_tuneApp.AutoLoginManager.SetLoginPassword("banana man", "cetomm"); //Store the username and password, for silent login
-            m_tuneApp.AutoLoginManager.SetAutoLoginName("banana man"); //Choose the user with which to login
-            m_tuneApp.Devices.Connect(2851);
+            m_tuneApp.AutoLoginManager.SetLoginPassword("username", "password"); //Store the username and password, for silent login
+            //m_tuneApp.AutoLoginManager.SetLoginKey("username", "C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\myKey.key"); //Login using key
+            m_tuneApp.AutoLoginManager.SetAutoLoginName("username"); //Choose the user with which to login
+            //m_tuneApp.AutoLoginManager.SetAutoLoginName(""); //Empty string is Guest user
+            ConnectToECU();
 
             try
             {
                 var pkg = GetMainPackage();
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                Console.WriteLine("Check username and password");
+                Console.WriteLine("Check username and password, or user permissions");
             }
         }
 
@@ -225,7 +230,7 @@ namespace TuneAPI
 
             var installedPkgs = m_tuneApp.InstalledPackages;
 
-            foreach (IMtcInstalledPackage p in installedPkgs)
+            foreach (IMtcPackageInfo p in installedPkgs)
             {
                 PrintInstalledPackage(p);
                 if (p.Comment.Equals(pkgFileName) && p.Hardware.Equals(ecuModel))
@@ -506,7 +511,7 @@ namespace TuneAPI
             }
         }
 
-        static void PrintInstalledPackage(IMtcInstalledPackage pkg)
+        static void PrintInstalledPackage(IMtcPackageInfo pkg)
         {
             Console.WriteLine($"File Name : {pkg.FileName}");
             Console.WriteLine($"\tFile VehicleId : {pkg.VehicleId}");
