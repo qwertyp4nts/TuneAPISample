@@ -353,7 +353,7 @@ namespace TuneAPI
         void TuneIATParameter()
         {
             //Function pre-requisite: IAT channel has no resource assigned, Default value is 35.0C
-            //This function changes the default value and checks the IAT channel value after modifying its properties
+            //This function changes the IAT default value and checks the IAT channel value after modifying its properties
 
             const string c = "Inlet Air Temperature";
             const string p = "Inlet Air Temperature Sensor Default";
@@ -396,7 +396,7 @@ namespace TuneAPI
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.ToString()); //make sure the input string channelValue can be converted to a double. If yes, might fail due to COM failure
+                    Console.WriteLine(e.ToString()); //make sure the input string channelValue can be converted to a double. If yes, might fail due to COM failure, or if resource is already assigned
                 }
             }
             else
