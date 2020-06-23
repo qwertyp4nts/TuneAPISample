@@ -70,11 +70,13 @@ namespace TuneAPI
             Console.WriteLine("7: Retrieve package from ECU and save it as a new file");
             Console.WriteLine("8: Get all live channel values and print to the console");
             Console.WriteLine("9: Get the live value of the 'ECU Uptime' channel");
-            Console.WriteLine("10: Change the value of the 'Inlet Air Temperature Sensor Default' Parameter");
-            Console.WriteLine("11: Print the Engine Efficiency table to the console");
-            Console.WriteLine("12: Assign a resource to 'Airbox Temperature Sensor Resource' and set its translation");
-            Console.WriteLine("13: Set the 'ADR CAN Bus' parameter to 'CAN Bus 1'");
-            Console.WriteLine("14: Exit the program");
+            Console.WriteLine("10: Get the live value of the 'ECU Uptime' channel, at 1.5 seconds into the telemetry display");
+            Console.WriteLine("11: Change the value of the 'Inlet Air Temperature Sensor Default' Parameter");
+            Console.WriteLine("12: Print the Engine Efficiency table to the console");
+            Console.WriteLine("13: Assign a resource to 'Airbox Temperature Sensor Resource' and set its translation");
+            Console.WriteLine("14: Set the 'ADR CAN Bus' parameter to 'CAN Bus 1'");
+            Console.WriteLine("15: Setup axis of Engine Efficiency table and tune sites");
+            Console.WriteLine("16: Exit the program");
             Console.WriteLine("");
         }
 
@@ -112,23 +114,27 @@ namespace TuneAPI
                         GetChannelValue("ECU Uptime");
                         break;
                     case 10:
-                        TuneIATParameter();
+                        GetChannelValueAtSpecificTime("ECU Uptime", 1.5);
                         break;
                     case 11:
-                        PrintTable();
+                        TuneIATParameter();
                         break;
                     case 12:
-                        TuneTable();
+                        PrintTable();
                         break;
                     case 13:
-                        TuneParameterByEnum("ADR CAN Bus", "CAN Bus 1");
+                        SetupAndTuneAirboxTemp();
                         break;
                     case 14:
-                        Exit();
+                        TuneParameterByEnum("ADR CAN Bus", "CAN Bus 1");
                         break;
                     case 15:
-                        OpenPasswordProtectedPackage();
-                        break; //TODO DELETE CASE 15
+                        SetupEngineEfficiencyTableAxis();
+                        TuneEngineEfficiencyTable();
+                        break;
+                    case 16:
+                        Exit();
+                        break;
 
                     default:
                         break;
@@ -163,7 +169,7 @@ namespace TuneAPI
                 if (m_recentWorkspace != null)
                 {
                     var f = m_recentWorkspace.Path;
-                    m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace}
+                    m_tuneApp.WorkspaceLoad(f); //Loads the most recently used workspace
                     //m_tuneApp.WorkspaceLoad("C:\\Users\\mila\\Documents\\MoTeC\\M1\\Tune\\Workspaces\\Tune 1"); //Loads workspace by file path
                 }
             }
@@ -209,8 +215,8 @@ namespace TuneAPI
         {
             ConnectToECU();
             m_tuneApp.Devices.RetrieveLogData(m_ConnectedECUSerialNumber);
-            //This takes us to screen where we select which sectors to extract from.
-            //it requires user interaction from here.
+            //This takes us to screen where we select which sectors to extract from
+            //It requires user interaction from here.
         }
 
         void LoadRecentPackage()
@@ -218,13 +224,13 @@ namespace TuneAPI
             CheckForRecentPackage();
  
             IMtcRecentFile recentPkg = m_tuneApp.RecentPackages[0];
-            m_tuneApp.Packages.Load(recentPkg.Path, true);
+            m_tuneApp.Packages.Load(recentPkg.Path, false);
         }
 
         void LoadPackageByName()
         {
             const string pkgFileName = "Generic 4 cylinder, MAP based Efficiency Migration Base v5"; //The name of the package we want to open
-            const string ecuModel = "M150"; //The hardware device type          
+            const string ecuModel = "M150"; //The hardware device type        
             bool foundPackage = false;
 
             CheckForInstalledPackage();
@@ -291,30 +297,23 @@ namespace TuneAPI
             }
         }
 
-        void GetChannelValue(string channelToSearchFor)
+        void GetChannelValue(string channel)
         {
             ConnectToECU();
             CheckForMainPackage();
 
+            string formattedChannel = channel.Replace(' ', '.');
+            var c = new string[] { formattedChannel };
             var allChannels = m_tuneApp.Packages[0].DAQ.GetRealTimeValueAll();
+
             if (allChannels != null && allChannels.Length > 0)
             {
-                string liveChannelValue = "";
+                var liveChannelValue = m_tuneApp.Packages[0].DAQ.GetRealTimeValue(c);
 
-                foreach (IMtcDAQValue channel in allChannels)
-                {
-                    if (channel.DisplayName.Equals(channelToSearchFor))
-                    {
-                        liveChannelValue = channel.DisplayValue + " " + channel.DisplayUnit;
-                        break;
-                    }
-                }
-                if (string.IsNullOrEmpty(liveChannelValue))
-                {
-                    Console.WriteLine($"Searched {allChannels.Length} channels. Did not find {channelToSearchFor}");
-                }
+                if (liveChannelValue == null)
+                    Console.WriteLine($"Could not find {channel}");
                 else
-                    Console.WriteLine($"{channelToSearchFor} channel found. Current value is {liveChannelValue}");
+                    Console.WriteLine($"{channel} channel found. Current value is {liveChannelValue[0].DisplayValue} {liveChannelValue[0].DisplayUnit}"); 
             }
             else
             {
@@ -322,11 +321,39 @@ namespace TuneAPI
             }
         }
 
+        void GetChannelValueAtSpecificTime(string channel, double time)
+        {
+            ConnectToECU();
+            CheckForMainPackage();
+            System.Threading.Thread.Sleep(1500); //This is just for the sample. Delete when using function
+
+            var pkg = m_tuneApp.Packages[0];
+            string formattedChannel = channel.Replace(' ', '.');
+            var c = new string[] { formattedChannel };
+            var us = SecsToMicroSecs(time);
+
+            if (pkg.DAQ.Time > us)
+            {
+                var v = pkg.DAQ.GetValue(c, us); //Gets the channel value <time> seconds into the telemetry display
+
+                if (v != null && v[0].DisplayName.Equals(channel))
+                    Console.WriteLine($"{channel} channel found. Value at {time.ToString()} seconds is {v[0].DisplayValue} {v[0].DisplayUnit}");
+                else
+                    Console.WriteLine($"Could not find {channel}");
+            }
+            else
+                Console.WriteLine($"Requested telemetry time of {time} seconds has not elapsed yet. Maximum DAQ time is currently {(pkg.DAQ.Time / 1e6).ToString ("0.##")} seconds");
+        }
+
+        double SecsToMicroSecs(double s)
+        {
+            return s * 1e6;
+        }
+
         void TuneIATParameter()
         {
-            //IAT channel has no resource assigned
-            //Default is 35.0C
-            //Change default value and check IAT channel
+            //Function pre-requisite: IAT channel has no resource assigned, Default value is 35.0C
+            //This function changes the default value and checks the IAT channel value after modifying its properties
 
             const string c = "Inlet Air Temperature";
             const string p = "Inlet Air Temperature Sensor Default";
@@ -393,7 +420,7 @@ namespace TuneAPI
                     var v = parameterToChange.Enumeration.EnumeratorByDisplayName[channelValue].Value;
                     parameterToChange.Site.Device.Value = v;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     Console.WriteLine($"ERROR: Ensure '{channelValue}' is a valid enumeration of: {channelName}");
                 }
@@ -416,12 +443,12 @@ namespace TuneAPI
             PrintTable(tables["Engine Efficiency"]);
         }
 
-        void TuneTable()
+        void SetupAndTuneAirboxTemp()
         {
             ConnectToECU();
             
             var pkg = GetMainPackage();
-            TuneParameter("Airbox Temperature Sensor Resource", "11");
+            TuneParameterByEnum("Airbox Temperature Sensor Resource", "Analogue Voltage Input 11");
 
             SavePackage(pkg); //Setting a resource requires package save
             CheckECUConnectionStatus(true); //Setting resource requires ECU reset following a save. Ensure we re-connect successfully.
@@ -431,8 +458,10 @@ namespace TuneAPI
             if (t != null)
             {
                 double[] x = { 1.000, 1.500, 2.000, 2.500, 3.000, 3.500, 4.000 }; //The voltage values we want on the x axis
+                IMtcTableAxisShape xShape = t.XAxis.Shape;
+                xShape.Values = x;
 
-                t.ReShape(true, x, false, null, false, null, true);
+                t.ReShape(xShape, null, null, true);
 
                 t.Site[0, 0, 0].Device.Value = -20;
                 t.Site[1, 0, 0].Device.Value = 0;
@@ -447,6 +476,81 @@ namespace TuneAPI
                 Console.WriteLine($"{t.DisplayName} was null. Check table");
             }
             //SavePackage(pkg); //Save again after making changes to the table. This is commented out to make the demo self-contained.
+        }
+
+        void SetupEngineEfficiencyTableAxis()
+        {
+            double[] x = { 0, 500, 5000 };
+            double[] y = { 30, 70, 90, 110};
+            double[] z = { 100, 102 };
+            SetupTableAxis("Engine Efficiency", true, x, "rpm", true, y, "kPa", true, z, "kPa a");
+        }
+
+        void TuneEngineEfficiencyTable()
+        {
+            //call after SetupEngineEfficiencyTableAxis()
+            var pkg = GetMainPackage();
+            IMtcTable t = pkg.Tables["Engine Efficiency"];
+
+            t.Site[0, 0, 0].Display.Value = 10;
+            t.Site[1, 0, 0].Display.Value = 53;
+            t.Site[2, 0, 0].Display.Value = 99;
+            t.Site[0, 1, 0].Display.Value = 40;
+            t.Site[1, 1, 0].Display.Value = 73;
+            t.Site[2, 1, 0].Display.Value = 141.5;
+            t.Site[0, 2, 0].Display.Value = 80;
+            t.Site[1, 2, 0].Display.Value = 89.1;
+            t.Site[2, 2, 0].Display.Value = 170.7;
+            t.Site[0, 3, 0].Display.Value = 160;
+            t.Site[1, 3, 0].Display.Value = 171;
+            t.Site[2, 3, 0].Display.Value = 200.0;
+        }
+
+        void SetupTableAxis(string tableName, bool xEnabled, double[] x, string xUnit, bool yEnabled = false, double[] y = null, string yUnit = null, bool zEnabled = false, double[] z = null, string zUnit = null)
+        { 
+            //Generic function to setup table axis. Called by SetupEngineEfficiencyTableAxis()
+
+            ConnectToECU();
+
+            var pkg = GetMainPackage();
+
+            var tables = pkg.Tables;
+            IMtcTable t = tables[tableName];
+
+            if (t != null)
+            {
+                IMtcTableAxisShape xShape = BuildShapeObject(t.XAxis.Shape, xEnabled, x, xUnit);
+                IMtcTableAxisShape yShape = BuildShapeObject(t.YAxis.Shape, yEnabled, y, yUnit);
+                IMtcTableAxisShape zShape = BuildShapeObject(t.ZAxis.Shape, zEnabled, z, zUnit);
+
+                t.ReShape(xShape, yShape, zShape, true);
+            }
+            else
+            {
+                Console.WriteLine($"{t.DisplayName} was null. Check table");
+            }
+            //SavePackage(pkg); //Save again after making changes to the table. This is commented out to make the demo self-contained.
+        }
+
+        IMtcTableAxisShape BuildShapeObject(IMtcTableAxisShape shape, bool enabled = false, double[] values = null, string unit = null)
+        {
+            if (enabled == true)
+            {
+                shape.Enabled = true;
+                if (values != null)
+                {
+                    shape.Values = values;
+                    if (unit != null)
+                    {
+                        shape.Unit = unit;
+                    }
+                }
+            }
+            else
+            {
+                shape.Enabled = false;
+            }
+            return shape;
         }
 
         void Exit()
@@ -552,7 +656,7 @@ namespace TuneAPI
             {
                 Console.WriteLine($"Table '{t.DisplayName}':");
 
-                PrintAjustItem(t);
+                PrintAdjustItem(t);
 
                 PrintTableAxis(t.XAxis, "X");
                 PrintTableAxis(t.YAxis, "Y");
@@ -560,7 +664,7 @@ namespace TuneAPI
             }
         }
 
-        static void PrintAjustItem(IMtcAdjustItem item)
+        static void PrintAdjustItem(IMtcAdjustItem item)
         {
             Console.WriteLine($"{item.DisplayName} ({(item.ReadOnly ? "Readonly" : "Editable")} and {(item.Visible ? "Visible" : "Invisible")}) : {item.DataType}");
             PrintEnumeration(item.Enumeration);
@@ -571,15 +675,17 @@ namespace TuneAPI
             if (axis != null)
             {
                 Console.WriteLine($"Axis {name}: ");
-                PrintAjustItem(axis);
+                Console.WriteLine($"{axis.DisplayName} ({(axis.Enabled ? "Enabled" : "Disabled")}, {(axis.ReadOnly ? "Readonly" : "Editable")} and {(axis.Visible ? "Visible" : "Invisible")}) : {axis.DataType}");
+                PrintEnumeration(axis.Enumeration);
+
                 Console.WriteLine($"\tMax Sites : {axis.MaxSites}");
                 Console.WriteLine($"\tUsed Sites : {axis.UsedSites}");
                 Console.WriteLine($"\tData Type : {axis.DataType}");
 
-                Console.Write("\tValues:");
+                Console.Write("\tValues: ");
                 for (uint i = 0; i < axis.UsedSites; i++)
                 {
-                    Console.Write(axis.Site[i].Display.DisplayValue);
+                    Console.Write(axis.Site[i].Display.DisplayValue + " ");
                 }
                 Console.WriteLine();
             }
