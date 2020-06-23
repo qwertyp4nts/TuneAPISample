@@ -120,7 +120,7 @@ namespace TuneAPI
                         TuneIATParameter();
                         break;
                     case 12:
-                        PrintTable();
+                        PrintTable("Engine Efficiency");
                         break;
                     case 13:
                         SetupAndTuneAirboxTemp();
@@ -434,13 +434,15 @@ namespace TuneAPI
             }
         }
 
-        void PrintTable()
+        void PrintTable(string tableName)
         {
             ConnectToECU();
             
             var pkg = GetMainPackage();
             var tables = pkg.Tables;
-            PrintTable(tables["Engine Efficiency"]);
+            var t = findMatchingTable(tableName);
+
+            PrintTable(tables[tableName]);
         }
 
         void SetupAndTuneAirboxTemp()
@@ -648,6 +650,30 @@ namespace TuneAPI
                 Console.WriteLine("Package saved successfully");
             else
                 throw new Exception("Failed to save package");
+        }
+
+        IMtcTable findMatchingTable(string tableName)
+        {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+
+            var t = tables[tableName];
+
+            if (t != null)
+            {
+                return t;
+            }
+            else
+            {
+                foreach (IMtcTable tbl in tables)
+                {
+                    if (tbl.DisplayName.StartsWith("tableName"))
+                    {
+                        return tbl;
+                    }
+                }
+                throw new Exception($"{tableName} table could not be found");
+            } 
         }
 
         static void PrintTable(IMtcTable t)
