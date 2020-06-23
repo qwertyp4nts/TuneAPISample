@@ -120,7 +120,8 @@ namespace TuneAPI
                         TuneIATParameter();
                         break;
                     case 12:
-                        PrintTable();
+                        PrintTable("Engine Efficiency");
+                        PrintTable("Engine Efficiency Main");
                         break;
                     case 13:
                         SetupAndTuneAirboxTemp();
@@ -130,7 +131,6 @@ namespace TuneAPI
                         break;
                     case 15:
                         SetupEngineEfficiencyTableAxis();
-                        TuneEngineEfficiencyTable();
                         break;
                     case 16:
                         Exit();
@@ -434,13 +434,19 @@ namespace TuneAPI
             }
         }
 
-        void PrintTable()
+        void PrintTable(string tableName)
         {
             ConnectToECU();
-            
+
             var pkg = GetMainPackage();
             var tables = pkg.Tables;
-            PrintTable(tables["Engine Efficiency"]);
+            var t = tables[tableName];
+
+            if (t != null)
+                PrintTable(tables[tableName]);
+            
+            else
+                Console.WriteLine($"{tableName} table could not be found");
         }
 
         void SetupAndTuneAirboxTemp()
@@ -480,17 +486,28 @@ namespace TuneAPI
 
         void SetupEngineEfficiencyTableAxis()
         {
+            var pkg = GetMainPackage();
+            var tables = pkg.Tables;
+
+            var t = tables["Engine Efficiency"];
+            if (t == null)
+            {
+                t = tables["Engine Efficiency Main"];
+            }
+
             double[] x = { 0, 500, 5000 };
             double[] y = { 30, 70, 90, 110};
             double[] z = { 100, 102 };
-            SetupTableAxis("Engine Efficiency", true, x, "rpm", true, y, "kPa", true, z, "kPa a");
+            SetupTableAxis(t.DisplayName, true, x, "rpm", true, y, "kPa", true, z, "kPa a");
+
+            TuneEngineEfficiencyTable(t.DisplayName);
         }
 
-        void TuneEngineEfficiencyTable()
+        void TuneEngineEfficiencyTable(string tableName)
         {
             //call after SetupEngineEfficiencyTableAxis()
             var pkg = GetMainPackage();
-            IMtcTable t = pkg.Tables["Engine Efficiency"];
+            IMtcTable t = pkg.Tables[tableName];
 
             t.Site[0, 0, 0].Display.Value = 10;
             t.Site[1, 0, 0].Display.Value = 53;
